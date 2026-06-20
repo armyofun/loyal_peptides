@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loyal Peptides — Inventory</title>
+<style>
+  :root {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --border: #e2e8f0;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --primary: #3b82f6;
+    --primary-dark: #2563eb;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --sidebar-w: 220px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* Layout */
+  #app { display: flex; min-height: 100vh; }
+  #sidebar {
+    width: var(--sidebar-w); background: var(--text); color: #fff;
+    display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh;
+    z-index: 100; transition: transform .25s;
+  }
+  #sidebar .logo { padding: 16px; border-bottom: 1px solid #334155; }
+  #sidebar .logo-inner { display: flex; align-items: center; gap: 10px; }
+  #sidebar .logo-text { line-height: 1.15; }
+  #sidebar .logo-text .t1 { font-size: 15px; font-weight: 800; letter-spacing: 1.5px; color: #fff; }
+  #sidebar .logo-text .t2 { font-size: 10px; font-weight: 500; letter-spacing: 2.5px; color: #94a3b8; text-transform: uppercase; }
+  #sidebar .logo span { color: var(--primary); }
+  #sidebar nav { flex: 1; padding: 8px 0; }
+  #sidebar nav a {
+    display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+    color: #94a3b8; text-decoration: none; font-size: 14px; transition: all .15s; cursor: pointer;
+  }
+  #sidebar nav a:hover, #sidebar nav a.active { color: #fff; background: #1e3a5f; }
+  #sidebar nav a.active { border-left: 3px solid var(--primary); }
+  #sidebar nav a .icon { font-size: 18px; width: 22px; text-align: center; }
+  #main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; }
+  #topbar {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 14px 24px; display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 50;
+  }
+  #topbar h1 { font-size: 18px; font-weight: 600; }
+  #menu-btn { display: none; background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text); }
+  #content { padding: 24px; flex: 1; }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+  .stat-card .label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+  .stat-card .value { font-size: 28px; font-weight: 700; }
+  .stat-card.primary .value { color: var(--primary); }
+  .stat-card.success .value { color: var(--success); }
+  .stat-card.warning .value { color: var(--warning); }
+  .stat-card.danger .value { color: var(--danger); }
+
+  /* Tables */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; padding: 10px 12px; background: var(--bg); font-weight: 600; font-size: 12px;
+       text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+  td { padding: 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f8fafc; }
+
+  /* Badges */
+  .badge { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+  .badge.green { background: #d1fae5; color: #065f46; }
+  .badge.red { background: #fee2e2; color: #991b1b; }
+  .badge.yellow { background: #fef3c7; color: #92400e; }
+  .badge.blue { background: #dbeafe; color: #1e40af; }
+  .badge.gray { background: #f1f5f9; color: #475569; }
+  .badge.purple { background: #ede9fe; color: #5b21b6; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 7px;
+         font-size: 14px; font-weight: 500; border: none; cursor: pointer; transition: all .15s; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-success:hover { background: #059669; }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-outline:hover { background: var(--bg); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+  /* Forms */
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group label { font-size: 13px; font-weight: 500; color: var(--text-muted); }
+  input, select, textarea {
+    padding: 9px 12px; border: 1px solid var(--border); border-radius: 7px;
+    font-size: 14px; font-family: inherit; background: var(--surface); color: var(--text);
+    transition: border .15s; width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px #3b82f620; }
+  textarea { resize: vertical; min-height: 80px; }
+
+  /* Toolbar */
+  .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+  .toolbar .search { flex: 1; min-width: 200px; }
+  .toolbar input { margin: 0; }
+
+  /* Modal */
+  .modal-bg { position: fixed; inset: 0; background: #00000060; z-index: 200; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .modal { background: var(--surface); border-radius: 12px; padding: 28px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; }
+  .modal h2 { font-size: 18px; margin-bottom: 20px; }
+  .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+  .tab { padding: 10px 18px; font-size: 14px; font-weight: 500; color: var(--text-muted); cursor: pointer;
+         border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .15s; }
+  .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .tab:hover { color: var(--text); }
+
+  /* Section header */
+  .section-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; flex-wrap: wrap; gap: 10px; }
+  .section-hdr h2 { font-size: 16px; font-weight: 600; }
+
+  /* Stock level indicator */
+  .stock-bar { width: 70px; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .stock-bar-fill { height: 100%; border-radius: 3px; transition: width .3s; }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 48px 20px; color: var(--text-muted); }
+  .empty .icon { font-size: 40px; margin-bottom: 10px; }
+  .empty p { font-size: 14px; }
+
+  /* Mobile overlay */
+  #overlay { display: none; position: fixed; inset: 0; background: #0006; z-index: 99; }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    #sidebar { transform: translateX(-100%); }
+    #sidebar.open { transform: translateX(0); }
+    #overlay.show { display: block; }
+    #main { margin-left: 0; }
+    #menu-btn { display: block; }
+    #content { padding: 16px; }
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .form-grid { grid-template-columns: 1fr; }
+    table { font-size: 13px; }
+    td, th { padding: 9px 8px; }
+  }
+  @media (max-width: 400px) {
+    .stat-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  .hidden { display: none !important; }
+  .text-muted { color: var(--text-muted); font-size: 13px; }
+  .mt-16 { margin-top: 16px; }
+  .gap-8 { gap: 8px; }
+</style>
+</head>
+<body>
+<div id="overlay"></div>
+<div id="app">
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div class="logo">
+      <div class="logo-inner">
+        <div style="background:#fff;border-radius:8px;padding:4px 4px;display:flex;align-items:center;flex-shrink:0">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 201" style="height:38px;width:auto">
+          <g transform="translate(-12,220) scale(0.1,-0.1)" fill="#000000" stroke="none">
+            <path d="M624 2172 c-98 -71 -193 -218 -218 -337 -45 -212 -45 -204 -5 -290 29 -61 31 -72 25 -138 -3 -40 -9 -106 -12 -147 -4 -44 -2 -98 5 -128 15 -70 63 -166 113 -225 35 -42 41 -58 50 -120 6 -40 16 -108 24 -151 7 -44 12 -81 10 -83 -7 -7 -49 103 -76 197 -15 52 -33 96 -39 98 -6 2 -11 -4 -11 -13 0 -9 -25 -74 -55 -144 -90 -211 -115 -303 -115 -428 l0 -73 274 0 274 0 -34 67 c-23 46 -34 82 -34 111 0 23 2 42 4 42 3 0 21 -9 40 -21 43 -25 126 -51 126 -40 0 5 -18 40 -41 79 -50 87 -55 129 -18 151 24 13 31 13 80 -9 74 -32 180 -33 266 -1 49 17 66 20 83 11 11 -6 20 -16 21 -23 4 -42 -7 -80 -37 -136 -19 -35 -32 -66 -30 -69 9 -8 86 20 124 46 l35 23 -5 -65 c-4 -43 -14 -80 -31 -110 l-26 -46 270 0 269 0 0 71 c0 39 -9 105 -20 147 -21 81 -64 207 -78 226 -8 11 -75 167 -86 200 -9 26 -15 17 -32 -51 -8 -32 -19 -75 -25 -96 -11 -46 -70 -172 -63 -137 12 65 34 228 34 254 0 19 20 59 57 114 31 46 65 109 75 140 22 67 23 192 3 277 -21 87 -19 118 16 201 20 47 29 85 26 102 -39 209 -75 303 -158 407 -52 66 -133 135 -157 135 -5 0 -15 -21 -21 -47 -14 -57 -58 -155 -72 -164 -6 -3 -27 -3 -48 2 -56 13 -135 11 -212 -7 -64 -14 -74 -14 -136 1 -70 18 -131 20 -217 10 l-51 -7 -26 54 c-14 29 -34 79 -43 111 -9 31 -20 57 -25 57 -4 0 -26 -13 -47 -28z m-22 -139 c-5 -10 -18 -40 -30 -66 -12 -26 -29 -74 -38 -105 -17 -60 -74 -140 -74 -104 0 30 29 131 49 170 18 34 87 122 96 122 3 0 1 -8 -3 -17z m1041 -40 c19 -27 44 -66 55 -88 23 -46 53 -151 45 -159 -10 -9 -61 64 -69 97 -3 18 -24 69 -45 115 -21 45 -34 82 -29 82 4 0 24 -21 43 -47z m-616 -90 c77 -16 85 -16 161 2 197 45 363 -25 491 -204 45 -63 52 -99 34 -163 -14 -45 -14 -65 -3 -151 13 -98 13 -100 -10 -145 -27 -51 -103 -113 -108 -89 -2 8 6 39 18 68 11 30 20 72 20 94 l0 40 -24 -36 c-14 -20 -48 -51 -75 -69 -46 -29 -51 -36 -51 -68 l0 -35 -35 36 c-47 49 -60 47 -34 -5 30 -59 59 -146 59 -177 0 -15 12 -67 26 -115 30 -106 26 -137 -22 -166 -55 -34 -73 -25 -287 141 -33 25 -34 67 -2 84 29 14 58 37 74 57 12 17 11 17 -18 12 -33 -7 -71 16 -71 42 0 23 21 26 36 5 30 -42 94 -13 94 43 0 99 -167 161 -287 107 -70 -32 -99 -98 -63 -144 25 -32 54 -35 77 -8 19 23 33 19 33 -9 0 -25 -35 -43 -67 -35 -40 10 -24 -16 35 -55 41 -27 52 -40 52 -61 0 -15 -6 -29 -12 -32 -7 -2 -60 -41 -117 -86 -115 -90 -140 -98 -190 -55 -36 30 -40 70 -17 163 8 31 17 80 21 110 7 55 38 154 53 175 15 19 22 46 12 46 -6 0 -28 -16 -50 -36 -22 -20 -38 -29 -34 -20 11 29 -5 61 -41 80 -20 11 -54 39 -75 63 l-40 43 0 -34 c0 -18 12 -59 26 -90 14 -31 24 -63 22 -72 -5 -25 -87 42 -117 95 -22 41 -23 45 -11 139 10 83 9 103 -4 141 -27 73 -21 102 35 186 65 96 165 174 254 196 53 13 148 10 232 -8z m168 -724 c5 -5 -26 -9 -83 -9 -51 0 -92 2 -92 5 0 22 152 26 175 4z m-26 -400 c47 -29 97 -77 88 -86 -9 -8 -253 -11 -261 -2 -12 12 5 35 56 72 58 43 71 44 117 16z"/>
+            <path d="M975 1643 c18 -44 16 -108 -4 -140 -18 -28 -26 -33 -61 -33 -26 0 -59 11 -95 31 -78 44 -160 38 -204 -15 -11 -13 -10 -17 5 -23 11 -3 34 -24 52 -45 42 -48 63 -59 126 -67 43 -5 52 -10 54 -28 2 -13 7 -23 12 -23 19 0 169 133 180 160 19 46 8 123 -24 165 -28 37 -53 48 -41 18z m-230 -189 c13 -21 22 -24 45 -19 34 7 49 -10 21 -24 -44 -24 -101 4 -101 49 0 27 14 25 35 -6z"/>
+            <path d="M1196 1622 c-48 -77 -42 -159 17 -206 17 -15 39 -32 47 -39 107 -90 124 -99 113 -58 -5 19 19 31 64 31 39 0 92 32 118 72 16 24 33 38 47 38 21 0 21 0 2 21 -50 55 -123 64 -194 23 -90 -53 -136 -50 -166 7 -12 24 -15 48 -11 91 3 32 1 58 -4 58 -5 0 -19 -17 -33 -38z m314 -157 c0 -19 -28 -57 -46 -61 -29 -7 -61 3 -68 22 -5 12 1 14 28 8 28 -5 37 -2 48 15 11 18 38 30 38 16z"/>
+          </g>
+        </svg>
+        </div>
+        <div class="logo-text">
+          <div class="t1">LOYAL</div>
+          <div class="t2">Peptides</div>
+        </div>
+      </div>
+    </div>
+    <nav>
+      <a class="active" data-view="dashboard"><span class="icon">📊</span> Dashboard</a>
+      <a data-view="inventory"><span class="icon">📦</span> Inventory</a>
+      <a data-view="transactions"><span class="icon">🔄</span> Transactions</a>
+      <a data-view="orders"><span class="icon">🛒</span> Orders</a>
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <div id="main">
+    <div id="topbar">
+      <button id="menu-btn" onclick="toggleMenu()">☰</button>
+      <h1 id="page-title">Dashboard</h1>
+      <div id="topbar-actions"></div>
+    </div>
+    <div id="content"></div>
+  </div>
+</div>
+
+<!-- Modal container -->
+<div id="modal-container"></div>
+
+<script>
+// ── Data Layer ──────────────────────────────────────────────────────────────
+const DB = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } },
+  set(k, v) { localStorage.setItem(k, JSON.stringify(v)); },
+  products() { return this.get('sf_products'); },
+  transactions() { return this.get('sf_transactions'); },
+  orders() { return this.get('sf_orders'); },
+  saveProducts(v) { this.set('sf_products', v); },
+  saveTransactions(v) { this.set('sf_transactions', v); },
+  saveOrders(v) { this.set('sf_orders', v); },
+  nextId(arr) { return arr.length ? Math.max(...arr.map(x => x.id)) + 1 : 1; },
+};
+
+// ── Real data ─────────────────────────────────────────────────────────────────
+const _P=[{"id":1,"name":"BAC10","sku":"BAC10","category":"Peptides","qty":9,"unit":"vials","reorder":5,"cost":2.2,"price":0.0,"fff_price":0.0,"qty_john":9,"qty_ramon":0,"ord_john":0,"ord_ramon":0},{"id":2,"name":"BAC30","sku":"BAC30","category":"Peptides","qty":24,"unit":"vials","reorder":5,"cost":8.5,"price":0.0,"fff_price":0.0,"qty_john":24,"qty_ramon":0,"ord_john":25,"ord_ramon":0},{"id":3,"name":"BPC10","sku":"BPC10","category":"Peptides","qty":17,"unit":"vials","reorder":5,"cost":9.9556,"price":60.0,"fff_price":50.0,"qty_john":0,"qty_ramon":17,"ord_john":10,"ord_ramon":0},{"id":4,"name":"GH15","sku":"GH15","category":"Peptides","qty":3,"unit":"vials","reorder":5,"cost":6.4333,"price":60.0,"fff_price":50.0,"qty_john":0,"qty_ramon":3,"ord_john":0,"ord_ramon":0},{"id":5,"name":"GH24","sku":"GH24","category":"Peptides","qty":0,"unit":"vials","reorder":5,"cost":9.5708,"price":90.0,"fff_price":75.0,"qty_john":0,"qty_ramon":0,"ord_john":130,"ord_ramon":20},{"id":6,"name":"IPA10","sku":"IPA10","category":"Peptides","qty":9,"unit":"vials","reorder":5,"cost":3.85,"price":50.0,"fff_price":40.0,"qty_john":9,"qty_ramon":0,"ord_john":0,"ord_ramon":0},{"id":7,"name":"KLOW80","sku":"KLOW80","category":"Peptides","qty":58,"unit":"vials","reorder":5,"cost":17.2253,"price":150.0,"fff_price":125.0,"qty_john":48,"qty_ramon":10,"ord_john":0,"ord_ramon":0},{"id":8,"name":"MOTS10","sku":"MOTS10","category":"Peptides","qty":25,"unit":"vials","reorder":5,"cost":6.8777,"price":50.0,"fff_price":35.0,"qty_john":10,"qty_ramon":15,"ord_john":0,"ord_ramon":0},{"id":9,"name":"KPV","sku":"KPV","category":"Peptides","qty":0,"unit":"vials","reorder":5,"cost":0.0,"price":0.0,"fff_price":0.0,"qty_john":0,"qty_ramon":0,"ord_john":0,"ord_ramon":0},{"id":10,"name":"MOTS40","sku":"MOTS40","category":"Peptides","qty":0,"unit":"vials","reorder":5,"cost":14.55,"price":50.0,"fff_price":35.0,"qty_john":0,"qty_ramon":0,"ord_john":20,"ord_ramon":0},{"id":11,"name":"MAST250","sku":"MAST250","category":"Peptides","qty":0,"unit":"vials","reorder":5,"cost":57.332,"price":0.0,"fff_price":0.0,"qty_john":0,"qty_ramon":0,"ord_john":0,"ord_ramon":0},{"id":12,"name":"NAD500","sku":"NAD500","category":"Peptides","qty":10,"unit":"vials","reorder":5,"cost":10.467,"price":75.0,"fff_price":60.0,"qty_john":0,"qty_ramon":10,"ord_john":0,"ord_ramon":0},{"id":13,"name":"PRIMO100","sku":"PRIMO100","category":"Peptides","qty":0,"unit":"vials","reorder":5,"cost":67.334,"price":0.0,"fff_price":0.0,"qty_john":0,"qty_ramon":0,"ord_john":0,"ord_ramon":0},{"id":14,"name":"RETA10","sku":"RETA10","category":"Peptides","qty":69,"unit":"vials","reorder":5,"cost":8.9447,"price":75.0,"fff_price":60.0,"qty_john":59,"qty_ramon":10,"ord_john":0,"ord_ramon":0},{"id":15,"name":"RETA20","sku":"RETA20","category":"Peptides","qty":30,"unit":"vials","reorder":5,"cost":18.3943,"price":100.0,"fff_price":75.0,"qty_john":20,"qty_ramon":10,"ord_john":20,"ord_ramon":0},{"id":16,"name":"RETA30","sku":"RETA30","category":"Peptides","qty":24,"unit":"vials","reorder":5,"cost":14.3971,"price":150.0,"fff_price":125.0,"qty_john":19,"qty_ramon":5,"ord_john":50,"ord_ramon":0},{"id":17,"name":"SS3110","sku":"SS3110","category":"Peptides","qty":10,"unit":"vials","reorder":5,"cost":11.566,"price":50.0,"fff_price":40.0,"qty_john":0,"qty_ramon":10,"ord_john":0,"ord_ramon":0},{"id":18,"name":"SS3150","sku":"SS3150","category":"Peptides","qty":0,"unit":"vials","reorder":5,"cost":22.0,"price":200.0,"fff_price":175.0,"qty_john":0,"qty_ramon":0,"ord_john":10,"ord_ramon":0},{"id":19,"name":"TB10","sku":"TB10","category":"Peptides","qty":10,"unit":"vials","reorder":5,"cost":11.9833,"price":60.0,"fff_price":50.0,"qty_john":0,"qty_ramon":10,"ord_john":10,"ord_ramon":0},{"id":20,"name":"TC250","sku":"TC250","category":"Peptides","qty":10,"unit":"vials","reorder":5,"cost":20.5835,"price":150.0,"fff_price":120.0,"qty_john":10,"qty_ramon":0,"ord_john":0,"ord_ramon":0},{"id":21,"name":"TESA10","sku":"TESA10","category":"Peptides","qty":9,"unit":"vials","reorder":5,"cost":15.5,"price":75.0,"fff_price":60.0,"qty_john":3,"qty_ramon":6,"ord_john":0,"ord_ramon":0},{"id":22,"name":"TIRZ30","sku":"TIRZ30","category":"Peptides","qty":20,"unit":"vials","reorder":5,"cost":5.75,"price":150.0,"fff_price":125.0,"qty_john":20,"qty_ramon":0,"ord_john":0,"ord_ramon":0}];
+const _T=[{"id":1,"productId":14,"productName":"RETA10","type":"incoming","qty":5,"date":"2026-03-03","vendor":"SAB","cost_total":47.5,"shipping":0.0,"cost_each":9.5,"note":"For: John"},{"id":2,"productId":15,"productName":"RETA20","type":"incoming","qty":5,"date":"2026-03-03","vendor":"SAB","cost_total":85.0,"shipping":0.0,"cost_each":17.0,"note":"For: John"},{"id":3,"productId":6,"productName":"IPA10","type":"incoming","qty":10,"date":"2026-03-03","vendor":"SAB","cost_total":77.0,"shipping":0.0,"cost_each":7.7,"note":"For: John"},{"id":4,"productId":21,"productName":"TESA10","type":"incoming","qty":10,"date":"2026-03-03","vendor":"SAB","cost_total":155.0,"shipping":0.0,"cost_each":15.5,"note":"For: John"},{"id":5,"productId":1,"productName":"BAC10","type":"incoming","qty":10,"date":"2026-03-03","vendor":"SAB","cost_total":22.0,"shipping":0.0,"cost_each":2.2,"note":"For: John"},{"id":6,"productId":3,"productName":"BPC10","type":"incoming","qty":10,"date":"2026-03-11","vendor":"SAB","cost_total":66.0,"shipping":0.0,"cost_each":6.6,"note":"For: Ramon"},{"id":7,"productId":8,"productName":"MOTS10","type":"incoming","qty":10,"date":"2026-03-11","vendor":"SAB","cost_total":66.0,"shipping":0.0,"cost_each":6.6,"note":"For: Ramon"},{"id":8,"productId":10,"productName":"MOTS40","type":"incoming","qty":20,"date":"2026-04-29","vendor":"GlowGetters","cost_total":276.0,"shipping":15.0,"cost_each":14.55,"note":"For: John"},{"id":9,"productId":15,"productName":"RETA20","type":"incoming","qty":10,"date":"2026-03-11","vendor":"SAB","cost_total":170.0,"shipping":0.0,"cost_each":17.0,"note":"For: Ramon"},{"id":10,"productId":2,"productName":"BAC30","type":"incoming","qty":10,"date":"2026-03-12","vendor":"BuyHive","cost_total":78.0,"shipping":10.0,"cost_each":8.8,"note":"For: John"},{"id":11,"productId":2,"productName":"BAC30","type":"incoming","qty":10,"date":"2026-03-16","vendor":"jbcalde","cost_total":90.0,"shipping":13.0,"cost_each":10.3,"note":"For: John"},{"id":12,"productId":15,"productName":"RETA20","type":"incoming","qty":10,"date":"2026-03-26","vendor":"SAB","cost_total":177.0,"shipping":0.0,"cost_each":17.7,"note":"For: John"},{"id":13,"productId":8,"productName":"MOTS10","type":"incoming","qty":20,"date":"2026-03-26","vendor":"SAB","cost_total":132.0,"shipping":0.0,"cost_each":6.6,"note":"For: John"},{"id":14,"productId":16,"productName":"RETA30","type":"incoming","qty":20,"date":"2026-04-02","vendor":"Bohemia","cost_total":260.0,"shipping":15.0,"cost_each":13.75,"note":"For: John"},{"id":15,"productId":16,"productName":"RETA30","type":"incoming","qty":20,"date":"2026-04-03","vendor":"SAB","cost_total":396.1,"shipping":0.0,"cost_each":19.805,"note":"For: John"},{"id":16,"productId":7,"productName":"KLOW80","type":"incoming","qty":10,"date":"2026-04-03","vendor":"SAB","cost_total":159.8,"shipping":0.0,"cost_each":15.98,"note":"For: John"},{"id":17,"productId":4,"productName":"GH15","type":"incoming","qty":50,"date":"2026-04-03","vendor":"MS","cost_total":300.0,"shipping":5.0,"cost_each":6.1,"note":"For: John"},{"id":18,"productId":19,"productName":"TB10","type":"incoming","qty":10,"date":"2026-04-04","vendor":"SAB","cost_total":133.0,"shipping":16.6667,"cost_each":14.9667,"note":"For: Ramon"},{"id":19,"productId":3,"productName":"BPC10","type":"incoming","qty":10,"date":"2026-04-04","vendor":"SAB","cost_total":66.0,"shipping":16.6667,"cost_each":8.2667,"note":"For: Ramon"},{"id":20,"productId":7,"productName":"KLOW80","type":"incoming","qty":10,"date":"2026-04-04","vendor":"SAB","cost_total":188.0,"shipping":16.6667,"cost_each":20.4667,"note":"For: Ramon"},{"id":21,"productId":22,"productName":"TIRZ30","type":"incoming","qty":20,"date":"2026-04-04","vendor":"eBazaar","cost_total":110.0,"shipping":5.0,"cost_each":5.75,"note":"For: John"},{"id":22,"productId":14,"productName":"RETA10","type":"incoming","qty":50,"date":"2026-04-04","vendor":"eBazaar","cost_total":295.0,"shipping":5.0,"cost_each":6.0,"note":"For: John"},{"id":23,"productId":20,"productName":"TC250","type":"incoming","qty":10,"date":"2026-04-09","vendor":"Legendary","cost_total":200.0,"shipping":40.0,"cost_each":24.0,"note":"For: John"},{"id":24,"productId":4,"productName":"GH15","type":"incoming","qty":50,"date":"2026-04-14","vendor":"MS","cost_total":300.0,"shipping":10.0,"cost_each":6.2,"note":"For: John"},{"id":25,"productId":15,"productName":"RETA20","type":"incoming","qty":10,"date":"2026-04-16","vendor":"Legendary","cost_total":180.0,"shipping":13.33,"cost_each":19.333,"note":"For: John"},{"id":26,"productId":15,"productName":"RETA20","type":"incoming","qty":10,"date":"2026-04-16","vendor":"Legendary","cost_total":180.0,"shipping":13.33,"cost_each":19.333,"note":"For: Ramon"},{"id":27,"productId":14,"productName":"RETA10","type":"incoming","qty":10,"date":"2026-04-16","vendor":"Legendary","cost_total":100.0,"shipping":13.34,"cost_each":11.334,"note":"For: Ramon"},{"id":28,"productId":16,"productName":"RETA30","type":"incoming","qty":20,"date":"2026-04-19","vendor":"MS","cost_total":220.0,"shipping":5.0,"cost_each":11.25,"note":"For: John"},{"id":29,"productId":8,"productName":"MOTS10","type":"incoming","qty":20,"date":"2026-04-25","vendor":"SAB","cost_total":132.0,"shipping":16.66,"cost_each":7.433,"note":"For: Ramon"},{"id":30,"productId":17,"productName":"SS3110","type":"incoming","qty":10,"date":"2026-04-25","vendor":"SAB","cost_total":99.0,"shipping":16.66,"cost_each":11.566,"note":"For: Ramon"},{"id":31,"productId":12,"productName":"NAD500","type":"incoming","qty":10,"date":"2026-04-25","vendor":"SAB","cost_total":88.0,"shipping":16.67,"cost_each":10.467,"note":"For: Ramon"},{"id":32,"productId":4,"productName":"GH15","type":"incoming","qty":20,"date":"2026-03-08","vendor":"Bohemia","cost_total":140.0,"shipping":0.0,"cost_each":7.0,"note":"For: Ramon"},{"id":33,"productId":16,"productName":"RETA30","type":"incoming","qty":5,"date":"2026-03-08","vendor":"Bohemia","cost_total":75.0,"shipping":0.0,"cost_each":15.0,"note":"For: John"},{"id":34,"productId":16,"productName":"RETA30","type":"incoming","qty":5,"date":"2026-03-08","vendor":"Bohemia","cost_total":75.0,"shipping":0.0,"cost_each":15.0,"note":"For: Ramon"},{"id":35,"productId":18,"productName":"SS3150","type":"incoming","qty":10,"date":"2026-03-08","vendor":"Bohemia","cost_total":220.0,"shipping":0.0,"cost_each":22.0,"note":"For: John"},{"id":36,"productId":7,"productName":"KLOW80","type":"incoming","qty":10,"date":"2026-03-17","vendor":"Aria","cost_total":225.0,"shipping":0.0,"cost_each":22.5,"note":"For: John"},{"id":37,"productId":7,"productName":"KLOW80","type":"incoming","qty":20,"date":"2026-04-09","vendor":"Pepe","cost_total":258.0,"shipping":17.5,"cost_each":13.775,"note":"For: John"},{"id":38,"productId":7,"productName":"KLOW80","type":"incoming","qty":10,"date":"2026-04-09","vendor":"Pepe","cost_total":129.0,"shipping":17.5,"cost_each":14.65,"note":"For: Ramon"},{"id":39,"productId":2,"productName":"BAC30","type":"incoming","qty":25,"date":"2026-04-28","vendor":"ModApoth","cost_total":145.0,"shipping":15.0,"cost_each":6.4,"note":"For: John"},{"id":40,"productId":16,"productName":"RETA30","type":"incoming","qty":20,"date":"2026-04-03","vendor":"SAB","cost_total":396.1,"shipping":0.0,"cost_each":19.805,"note":"For: John"},{"id":41,"productId":7,"productName":"KLOW80","type":"incoming","qty":10,"date":"2026-04-03","vendor":"SAB","cost_total":159.8,"shipping":0.0,"cost_each":15.98,"note":"For: John"},{"id":42,"productId":6,"productName":"IPA10","type":"incoming","qty":10,"date":"2026-04-03","vendor":"SAB","cost_total":0.0,"shipping":0.0,"cost_each":0.0,"note":"For: John"},{"id":43,"productId":9,"productName":"KPV","type":"incoming","qty":10,"date":"2026-04-03","vendor":"SAB","cost_total":0.0,"shipping":0.0,"cost_each":0.0,"note":"For: John"},{"id":44,"productId":15,"productName":"RETA20","type":"incoming","qty":20,"date":"2026-05-21","vendor":"Legendary","cost_total":360.0,"shipping":40.0,"cost_each":20.0,"note":"For: Both"},{"id":45,"productId":19,"productName":"TB10","type":"incoming","qty":10,"date":"2026-05-22","vendor":"HXTNT","cost_total":60.0,"shipping":30.0,"cost_each":9.0,"note":"For: Both"},{"id":46,"productId":3,"productName":"BPC10","type":"incoming","qty":10,"date":"2026-05-22","vendor":"HXTNT","cost_total":120.0,"shipping":30.0,"cost_each":15.0,"note":"For: Both"},{"id":47,"productId":5,"productName":"GH24","type":"incoming","qty":20,"date":"2026-05-09","vendor":"Lobster","cost_total":184.0,"shipping":5.0,"cost_each":9.45,"note":"For: Ramon"},{"id":48,"productId":5,"productName":"GH24","type":"incoming","qty":80,"date":"2026-05-09","vendor":"Lobster","cost_total":736.0,"shipping":5.0,"cost_each":9.2625,"note":"For: John"},{"id":49,"productId":16,"productName":"RETA30","type":"incoming","qty":30,"date":"2026-05-26","vendor":"RC","cost_total":330.0,"shipping":20.0,"cost_each":11.6667,"note":"For: John"},{"id":50,"productId":5,"productName":"GH24","type":"incoming","qty":50,"date":"2026-05-29","vendor":"Moli","cost_total":500.0,"shipping":0.0,"cost_each":10.0,"note":"For: John"},{"id":51,"productId":16,"productName":"RETA30","type":"incoming","qty":50,"date":"2026-05-29","vendor":"Moli","cost_total":445.0,"shipping":0.0,"cost_each":8.9,"note":"For: John"},{"id":52,"productId":11,"productName":"MAST250","type":"incoming","qty":5,"date":"2026-06-02","vendor":"Legendary","cost_total":275.0,"shipping":11.66,"cost_each":57.332,"note":"For: Both"},{"id":53,"productId":13,"productName":"PRIMO100","type":"incoming","qty":5,"date":"2026-06-02","vendor":"Legendary","cost_total":325.0,"shipping":11.67,"cost_each":67.334,"note":"For: Both"},{"id":54,"productId":20,"productName":"TC250","type":"incoming","qty":10,"date":"2026-06-02","vendor":"Legendary","cost_total":160.0,"shipping":11.67,"cost_each":17.167,"note":"For: Both"}];
+const _O=[{"id":1,"ref":"ORD-0001","type":"customer","party":"TQ F4L","date":"2026-06-01","status":"delivered","notes":"","items":[{"name":"BPC10","sku":"BPC10","qty":2,"price":35.0,"from":"Ramon"},{"name":"TB10","sku":"TB10","qty":2,"price":50.0,"from":"Ramon"}]},{"id":2,"ref":"ORD-0002","type":"customer","party":"Jiesyl","date":"2026-06-01","status":"pending","notes":"","items":[{"name":"RETA20","sku":"RETA20","qty":2,"price":100.0,"from":"Ramon"}]},{"id":3,"ref":"ORD-0003","type":"customer","party":"Mariangie","date":"2026-06-01","status":"delivered","notes":"","items":[{"name":"RETA20","sku":"RETA20","qty":1,"price":0.0,"from":"Ramon"},{"name":"KLOW80","sku":"KLOW80","qty":1,"price":100.0,"from":"John"}]},{"id":4,"ref":"ORD-0004","type":"customer","party":"Roger","date":"2026-06-01","status":"delivered","notes":"","items":[{"name":"KLOW80","sku":"KLOW80","qty":1,"price":50.0,"from":"John"},{"name":"RETA20","sku":"RETA20","qty":1,"price":50.0,"from":"Ramon"},{"name":"TESA10","sku":"TESA10","qty":2,"price":20.0,"from":"Ramon"}]},{"id":5,"ref":"ORD-0005","type":"customer","party":"Carlos","date":"2026-06-01","status":"pending","notes":"","items":[{"name":"TESA10","sku":"TESA10","qty":3,"price":50.0,"from":"Ramon"}]},{"id":6,"ref":"ORD-0006","type":"customer","party":"Mari Pena","date":"2026-06-01","status":"pending","notes":"","items":[{"name":"RETA20","sku":"RETA20","qty":2,"price":150.0,"from":"Ramon"}]},{"id":7,"ref":"ORD-0007","type":"customer","party":"Corbin Colón","date":"2026-06-01","status":"pending","notes":"","items":[{"name":"GH15","sku":"GH15","qty":10,"price":12.5,"from":"John"}]},{"id":8,"ref":"ORD-0008","type":"customer","party":"DQ","date":"2026-06-01","status":"pending","notes":"","items":[{"name":"RETA10","sku":"RETA10","qty":2,"price":100.0,"from":"John"}]},{"id":9,"ref":"ORD-0009","type":"customer","party":"Johnathan","date":"2026-06-01","status":"delivered","notes":"","items":[{"name":"MOTS10","sku":"MOTS10","qty":3,"price":35.0,"from":"Ramon"},{"name":"RETA10","sku":"RETA10","qty":1,"price":90.0,"from":"Ramon"}]},{"id":10,"ref":"ORD-0010","type":"customer","party":"Mariangie","date":"2026-06-01","status":"delivered","notes":"","items":[{"name":"TESA10","sku":"TESA10","qty":2,"price":20.0,"from":"Ramon"},{"name":"MOTS10","sku":"MOTS10","qty":1,"price":35.0,"from":"John"}]},{"id":11,"ref":"ORD-0011","type":"customer","party":"Victoria","date":"2026-06-01","status":"pending","notes":"","items":[{"name":"RETA10","sku":"RETA10","qty":1,"price":60.0,"from":"John"}]},{"id":12,"ref":"ORD-0012","type":"customer","party":"Dan","date":"2026-06-01","status":"pending","notes":"","items":[{"name":"RETA10","sku":"RETA10","qty":1,"price":60.0,"from":"John"}]},{"id":13,"ref":"ORD-0013","type":"customer","party":"Ronni","date":"2026-06-01","status":"delivered","notes":"","items":[{"name":"GH15","sku":"GH15","qty":10,"price":60.0,"from":"Ramon"},{"name":"RETA20","sku":"RETA20","qty":20,"price":50.0,"from":"John"},{"name":"TC250","sku":"TC250","qty":2,"price":50.0,"from":"John"},{"name":"MOTS10","sku":"MOTS10","qty":10,"price":30.0,"from":"Ramon"},{"name":"KLOW80","sku":"KLOW80","qty":10,"price":60.0,"from":"John"}]},{"id":14,"ref":"ORD-0014","type":"customer","party":"Axel","date":"2026-06-01","status":"delivered","notes":"","items":[{"name":"PRIMO100","sku":"PRIMO100","qty":2,"price":75.0,"from":""},{"name":"TC250","sku":"TC250","qty":2,"price":75.0,"from":""}]},{"id":15,"ref":"ORD-0015","type":"customer","party":"Cliff Roberts","date":"2026-06-01","status":"pending","notes":"","items":[{"name":"TIRZ30","sku":"TIRZ30","qty":2,"price":65.0,"from":"John"}]},{"id":16,"ref":"ORD-0016","type":"customer","party":"Justin Albrecht","date":"2026-06-01","status":"pending","notes":"","items":[{"name":"BPC10","sku":"BPC10","qty":3,"price":0.0,"from":""},{"name":"TB10","sku":"TB10","qty":3,"price":0.0,"from":""}]},{"id":100,"ref":"ORD-0100","type":"supplier","party":"Pending (in transit)","date":"2026-06-19","status":"confirmed","notes":"Items ordered but not yet received from inventory sheet","items":[{"name":"BAC30","sku":"BAC30","qty":25,"price":8.5},{"name":"BPC10","sku":"BPC10","qty":10,"price":9.9556},{"name":"GH24","sku":"GH24","qty":130,"price":9.5708},{"name":"GH24","sku":"GH24","qty":20,"price":9.5708},{"name":"MOTS40","sku":"MOTS40","qty":20,"price":14.55},{"name":"RETA20","sku":"RETA20","qty":20,"price":18.3943},{"name":"RETA30","sku":"RETA30","qty":50,"price":14.3971},{"name":"SS3150","sku":"SS3150","qty":10,"price":22.0},{"name":"TB10","sku":"TB10","qty":10,"price":11.9833}]}];
+
+const DATA_VERSION = 'v3-real';
+function migrateData() {
+  if (localStorage.getItem('sf_version') === DATA_VERSION) return;
+  Object.keys(localStorage).filter(k => k.startsWith('sf_')).forEach(k => localStorage.removeItem(k));
+  DB.saveProducts(_P);
+  DB.saveTransactions(_T);
+  DB.saveOrders(_O);
+  localStorage.setItem('sf_version', DATA_VERSION);
+}
+
+// ── Router ───────────────────────────────────────────────────────────────────
+let currentView = 'dashboard';
+const views = { dashboard, inventory, transactions, orders };
+
+function navigate(view) {
+  currentView = view;
+  document.querySelectorAll('#sidebar nav a').forEach(a => {
+    a.classList.toggle('active', a.dataset.view === view);
+  });
+  const titles = { dashboard:'Dashboard', inventory:'Inventory', transactions:'Transactions', orders:'Orders' };
+  document.getElementById('page-title').textContent = titles[view];
+  closeMobileMenu();
+  views[view]();
+}
+
+document.querySelectorAll('#sidebar nav a').forEach(a => {
+  a.addEventListener('click', () => navigate(a.dataset.view));
+});
+
+function toggleMenu() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('show');
+}
+function closeMobileMenu() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+}
+document.getElementById('overlay').addEventListener('click', closeMobileMenu);
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function fmt(n, d=2) { return Number(n).toFixed(d); }
+function fmtDate(d) { return d ? new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'; }
+function stockStatus(qty, reorder) {
+  if (qty === 0) return ['Out of Stock','red'];
+  if (qty <= reorder) return ['Low Stock','yellow'];
+  return ['In Stock','green'];
+}
+function stockBarColor(qty, reorder) {
+  if (qty === 0) return '#ef4444';
+  if (qty <= reorder) return '#f59e0b';
+  return '#10b981';
+}
+function orderStatusBadge(status) {
+  const map = { pending:['Pending','yellow'], confirmed:['Confirmed','blue'], shipped:['Shipped','purple'], delivered:['Delivered','green'], cancelled:['Cancelled','red'] };
+  return map[status] || [status, 'gray'];
+}
+function setContent(html, actions='') {
+  $('content').innerHTML = html;
+  $('topbar-actions').innerHTML = actions;
+}
+function openModal(html) {
+  $('modal-container').innerHTML = `<div class="modal-bg" id="modal-bg">${html}</div>`;
+  $('modal-bg').addEventListener('click', e => { if (e.target === $('modal-bg')) closeModal(); });
+}
+function closeModal() { $('modal-container').innerHTML = ''; }
+
+// ── Dashboard ────────────────────────────────────────────────────────────────
+function dashboard() {
+  const products = DB.products();
+  const transactions = DB.transactions();
+  const orders = DB.orders();
+  const today = new Date().toISOString().split('T')[0];
+
+  const totalProducts = products.length;
+  const outOfStock = products.filter(p => p.qty === 0).length;
+  const lowStock = products.filter(p => p.qty > 0 && p.qty <= p.reorder).length;
+  const totalValue = products.reduce((s,p) => s + p.qty * p.cost, 0);
+
+  const recentTx = [...transactions].sort((a,b) => b.date.localeCompare(a.date)).slice(0,5);
+  const pendingOrders = orders.filter(o => o.status === 'pending').length;
+
+  const txRows = recentTx.map(t => `
+    <tr>
+      <td>${fmtDate(t.date)}</td>
+      <td>${esc(t.productName)}</td>
+      <td><span class="badge ${t.type==='incoming'?'green':'red'}">${t.type==='incoming'?'▲ Incoming':'▼ Outgoing'}</span></td>
+      <td>${t.qty}</td>
+      <td class="text-muted">${esc(t.vendor||t.ref||'—')}</td>
+    </tr>`).join('') || `<tr><td colspan="5"><div class="empty"><p>No transactions yet</p></div></td></tr>`;
+
+  const alertItems = products.filter(p => p.qty <= p.reorder).sort((a,b) => a.qty - b.qty).slice(0,5);
+  const alertRows = alertItems.map(p => {
+    const [label, color] = stockStatus(p.qty, p.reorder);
+    return `<tr>
+      <td>${esc(p.name)}</td>
+      <td>${esc(p.sku)}</td>
+      <td><span class="badge ${color}">${label}</span></td>
+      <td>${p.qty} / ${p.reorder}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="4"><div class="empty"><p>All items well stocked ✓</p></div></td></tr>`;
+
+  setContent(`
+    <div class="stat-grid">
+      <div class="stat-card primary"><div class="label">Total Products</div><div class="value">${totalProducts}</div></div>
+      <div class="stat-card danger"><div class="label">Out of Stock</div><div class="value">${outOfStock}</div></div>
+      <div class="stat-card warning"><div class="label">Low Stock</div><div class="value">${lowStock}</div></div>
+      <div class="stat-card success"><div class="label">Inventory Value</div><div class="value">$${fmt(totalValue)}</div></div>
+      <div class="stat-card blue" style="--blue:#3b82f6"><div class="label">Pending Orders</div><div class="value" style="color:#3b82f6">${pendingOrders}</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px">
+      <div class="card">
+        <div class="section-hdr"><h2>Recent Transactions</h2></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Date</th><th>Product</th><th>Type</th><th>Qty</th><th>Ref</th></tr></thead>
+          <tbody>${txRows}</tbody>
+        </table></div>
+      </div>
+      <div class="card">
+        <div class="section-hdr"><h2>Stock Alerts</h2></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Product</th><th>SKU</th><th>Status</th><th>Qty / Min</th></tr></thead>
+          <tbody>${alertRows}</tbody>
+        </table></div>
+      </div>
+    </div>
+  `);
+}
+
+// ── Inventory ────────────────────────────────────────────────────────────────
+function inventory(filter='') {
+  let products = DB.products();
+  if (filter) {
+    const q = filter.toLowerCase();
+    products = products.filter(p =>
+      p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || p.category.toLowerCase().includes(q)
+    );
+  }
+
+  const rows = products.map(p => {
+    const [label, color] = stockStatus(p.qty, p.reorder);
+    const pct = Math.min(100, p.reorder > 0 ? (p.qty / (p.reorder * 3)) * 100 : 100);
+    const barColor = stockBarColor(p.qty, p.reorder);
+    const splitParts = [];
+    if ((p.qty_john||0) > 0) splitParts.push(`J:${p.qty_john}`);
+    if ((p.qty_ramon||0) > 0) splitParts.push(`R:${p.qty_ramon}`);
+    const splitLabel = splitParts.length ? splitParts.join(' / ') : '—';
+    const ordParts = [];
+    if ((p.ord_john||0) > 0) ordParts.push(`J:${p.ord_john}`);
+    if ((p.ord_ramon||0) > 0) ordParts.push(`R:${p.ord_ramon}`);
+    const ordLabel = ordParts.length ? `<span class="badge blue" style="font-size:11px">${ordParts.join(' / ')} on order</span>` : '';
+    return `<tr>
+      <td><strong>${esc(p.name)}</strong></td>
+      <td class="text-muted">${esc(p.sku)}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <strong>${p.qty}</strong>
+          <div class="stock-bar"><div class="stock-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+        </div>
+        ${ordLabel}
+      </td>
+      <td class="text-muted" style="font-size:13px">${splitLabel}</td>
+      <td><span class="badge ${color}">${label}</span></td>
+      <td class="text-muted">$${fmt(p.cost)}</td>
+      <td class="text-muted">${p.price > 0 ? '$'+fmt(p.price) : '—'}</td>
+      <td class="text-muted">${p.fff_price > 0 ? '$'+fmt(p.fff_price) : '—'}</td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-outline btn-sm" onclick="txModal(${p.id},'incoming')">+ In</button>
+          <button class="btn btn-outline btn-sm" onclick="txModal(${p.id},'outgoing')">- Out</button>
+          <button class="btn btn-outline btn-sm" onclick="editProduct(${p.id})">✏️</button>
+          <button class="btn btn-outline btn-sm" style="color:var(--danger)" onclick="deleteProduct(${p.id})">🗑</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="9"><div class="empty"><div class="icon">📦</div><p>No products found</p></div></td></tr>`;
+
+  setContent(`
+    <div class="toolbar">
+      <div class="search"><input type="text" id="inv-search" placeholder="Search by name, SKU, or category…" value="${esc(filter)}" oninput="inventory(this.value)"></div>
+      <button class="btn btn-primary" onclick="addProduct()">+ Add Product</button>
+    </div>
+    <div class="card">
+      <div class="table-wrap"><table>
+        <thead><tr><th>Name</th><th>SKU</th><th>Qty / On Order</th><th>John / Ramon</th><th>Status</th><th>Avg Cost</th><th>Price</th><th>F&amp;F</th><th>Actions</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </div>
+  `);
+}
+
+function addProduct() {
+  openModal(`<div class="modal">
+    <h2>Add Product</h2>
+    <div class="form-grid">
+      <div class="form-group"><label>Name *</label><input id="f-name" placeholder="RETA10"></div>
+      <div class="form-group"><label>SKU *</label><input id="f-sku" placeholder="RETA10"></div>
+      <div class="form-group"><label>Category</label><input id="f-cat" placeholder="Peptides" value="Peptides"></div>
+      <div class="form-group"><label>Unit</label><input id="f-unit" placeholder="vials" value="vials"></div>
+      <div class="form-group"><label>Initial Qty (Total)</label><input id="f-qty" type="number" min="0" value="0"></div>
+      <div class="form-group"><label>Reorder Level</label><input id="f-reorder" type="number" min="0" value="5"></div>
+      <div class="form-group"><label>Avg Cost ($)</label><input id="f-cost" type="number" min="0" step="0.01" value="0"></div>
+      <div class="form-group"><label>Price ($)</label><input id="f-price" type="number" min="0" step="0.01" value="0"></div>
+      <div class="form-group"><label>F&amp;F Price ($)</label><input id="f-fff" type="number" min="0" step="0.01" value="0"></div>
+      <div class="form-group"><label>John Qty</label><input id="f-qjohn" type="number" min="0" value="0"></div>
+      <div class="form-group"><label>Ramon Qty</label><input id="f-qramon" type="number" min="0" value="0"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProduct()">Save Product</button>
+    </div>
+  </div>`);
+}
+
+function editProduct(id) {
+  const products = DB.products();
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  openModal(`<div class="modal">
+    <h2>Edit Product</h2>
+    <div class="form-grid">
+      <div class="form-group"><label>Name *</label><input id="f-name" value="${esc(p.name)}"></div>
+      <div class="form-group"><label>SKU *</label><input id="f-sku" value="${esc(p.sku)}"></div>
+      <div class="form-group"><label>Category</label><input id="f-cat" value="${esc(p.category)}"></div>
+      <div class="form-group"><label>Unit</label><input id="f-unit" value="${esc(p.unit)}"></div>
+      <div class="form-group"><label>Total Qty</label><input id="f-qty" type="number" min="0" value="${p.qty}"></div>
+      <div class="form-group"><label>Reorder Level</label><input id="f-reorder" type="number" min="0" value="${p.reorder}"></div>
+      <div class="form-group"><label>Avg Cost ($)</label><input id="f-cost" type="number" min="0" step="0.01" value="${p.cost}"></div>
+      <div class="form-group"><label>Price ($)</label><input id="f-price" type="number" min="0" step="0.01" value="${p.price}"></div>
+      <div class="form-group"><label>F&amp;F Price ($)</label><input id="f-fff" type="number" min="0" step="0.01" value="${p.fff_price||0}"></div>
+      <div class="form-group"><label>John Qty</label><input id="f-qjohn" type="number" min="0" value="${p.qty_john||0}"></div>
+      <div class="form-group"><label>Ramon Qty</label><input id="f-qramon" type="number" min="0" value="${p.qty_ramon||0}"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProduct(${id})">Update Product</button>
+    </div>
+  </div>`);
+}
+
+function saveProduct(id) {
+  const name = $('f-name').value.trim();
+  const sku = $('f-sku').value.trim();
+  if (!name || !sku) { alert('Name and SKU are required.'); return; }
+  const products = DB.products();
+  const qjohn = Math.max(0, parseInt($('f-qjohn').value) || 0);
+  const qramon = Math.max(0, parseInt($('f-qramon').value) || 0);
+  const existingP = id ? DB.products().find(x => x.id === id) : null;
+  const p = {
+    id: id || DB.nextId(products),
+    name, sku,
+    category: $('f-cat').value.trim() || 'Peptides',
+    unit: $('f-unit').value.trim() || 'vials',
+    qty: Math.max(0, parseInt($('f-qty').value) || 0),
+    reorder: Math.max(0, parseInt($('f-reorder').value) || 0),
+    cost: parseFloat($('f-cost').value) || 0,
+    price: parseFloat($('f-price').value) || 0,
+    fff_price: parseFloat($('f-fff').value) || 0,
+    qty_john: qjohn, qty_ramon: qramon,
+    ord_john: existingP?.ord_john || 0, ord_ramon: existingP?.ord_ramon || 0,
+  };
+  if (id) {
+    const i = products.findIndex(x => x.id === id);
+    products[i] = p;
+  } else {
+    products.push(p);
+  }
+  DB.saveProducts(products);
+  closeModal();
+  inventory();
+}
+
+function deleteTx(id) {
+  if (!confirm('Delete this transaction? The quantity change will be reversed.')) return;
+  const txs = DB.transactions();
+  const tx = txs.find(t => t.id === id);
+  if (!tx) return;
+  const products = DB.products();
+  const p = products.find(x => x.id === tx.productId);
+  if (p) {
+    p.qty += tx.type === 'incoming' ? -tx.qty : tx.qty;
+    DB.saveProducts(products);
+  }
+  DB.saveTransactions(txs.filter(t => t.id !== id));
+  transactions();
+}
+
+function deleteProduct(id) {
+  if (!confirm('Delete this product? This cannot be undone.')) return;
+  DB.saveProducts(DB.products().filter(p => p.id !== id));
+  inventory();
+}
+
+// ── Transactions ─────────────────────────────────────────────────────────────
+function transactions(tab='all', filter='') {
+  let txs = DB.transactions();
+  if (tab !== 'all') txs = txs.filter(t => t.type === tab);
+  if (filter) {
+    const q = filter.toLowerCase();
+    txs = txs.filter(t => t.productName.toLowerCase().includes(q) || (t.ref||'').toLowerCase().includes(q));
+  }
+  txs = [...txs].sort((a,b) => b.date.localeCompare(a.date) || b.id - a.id);
+
+  const rows = txs.map(t => `<tr>
+    <td>${fmtDate(t.date)}</td>
+    <td>${esc(t.productName)}</td>
+    <td><span class="badge ${t.type==='incoming'?'green':'red'}">${t.type==='incoming'?'▲ Incoming':'▼ Outgoing'}</span></td>
+    <td><strong>${t.qty}</strong></td>
+    <td class="text-muted">${esc(t.vendor||t.ref||'—')}</td>
+    <td class="text-muted">${t.cost_each > 0 ? '$'+fmt(t.cost_each) : '—'}</td>
+    <td class="text-muted">${t.shipping > 0 ? '$'+fmt(t.shipping) : '—'}</td>
+    <td class="text-muted" style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.note||'—')}</td>
+    <td style="white-space:nowrap">
+      <button class="btn btn-outline btn-sm" onclick="txModal(${t.productId},'${t.type}',${t.id})">✏️</button>
+      <button class="btn btn-outline btn-sm" style="color:var(--danger)" onclick="deleteTx(${t.id})">🗑</button>
+    </td>
+  </tr>`).join('') || `<tr><td colspan="9"><div class="empty"><div class="icon">🔄</div><p>No transactions found</p></div></td></tr>`;
+
+  setContent(`
+    <div class="tabs">
+      <div class="tab ${tab==='all'?'active':''}" onclick="transactions('all')">All</div>
+      <div class="tab ${tab==='incoming'?'active':''}" onclick="transactions('incoming')">Incoming</div>
+      <div class="tab ${tab==='outgoing'?'active':''}" onclick="transactions('outgoing')">Outgoing</div>
+    </div>
+    <div class="toolbar">
+      <div class="search"><input type="text" placeholder="Search product or reference…" value="${esc(filter)}" oninput="transactions('${tab}',this.value)"></div>
+      <button class="btn btn-success" onclick="txModal(null,'incoming')">+ Stock In</button>
+      <button class="btn btn-danger" onclick="txModal(null,'outgoing')">- Stock Out</button>
+    </div>
+    <div class="card">
+      <div class="table-wrap"><table>
+        <thead><tr><th>Date</th><th>Product</th><th>Type</th><th>Qty</th><th>Vendor / Ref</th><th>Each</th><th>Shipping</th><th>Note</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </div>
+  `);
+}
+
+function txModal(productId, type, txId=null) {
+  const products = DB.products();
+  const tx = txId ? DB.transactions().find(t => t.id === txId) : null;
+  const selId = tx ? tx.productId : productId;
+  const opts = products.map(p => `<option value="${p.id}" ${p.id===selId?'selected':''}>${esc(p.name)} (${esc(p.sku)})</option>`).join('');
+  const today = new Date().toISOString().split('T')[0];
+  const isEdit = !!tx;
+  const t = tx || {};
+  const typeLabel = type === 'incoming' ? 'Stock In (Incoming)' : 'Stock Out (Outgoing)';
+
+  const incomingFields = type === 'incoming' ? `
+    <div class="form-group"><label>Vendor</label><input id="tx-vendor" value="${esc(t.vendor||t.ref||'')}" placeholder="SAB, Legendary…"></div>
+    <div class="form-group"><label>Total Cost ($)</label><input id="tx-cost-total" type="number" min="0" step="0.01" value="${t.cost_total||0}"></div>
+    <div class="form-group"><label>Shipping ($)</label><input id="tx-shipping" type="number" min="0" step="0.01" value="${t.shipping||0}"></div>
+    <div class="form-group"><label>Cost Each ($)</label><input id="tx-cost-each" type="number" min="0" step="0.01" value="${t.cost_each||0}"></div>` : `
+    <div class="form-group"><label>Reference</label><input id="tx-ref" value="${esc(t.ref||t.vendor||'')}" placeholder="ORD-0001…"></div>`;
+
+  openModal(`<div class="modal">
+    <h2>${isEdit ? 'Edit ' : ''}${typeLabel}</h2>
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1"><label>Product *</label>
+        <select id="tx-product"><option value="">Select product…</option>${opts}</select>
+      </div>
+      <div class="form-group"><label>Quantity *</label><input id="tx-qty" type="number" min="1" value="${t.qty||1}"></div>
+      <div class="form-group"><label>Date</label><input id="tx-date" type="date" value="${t.date||today}"></div>
+      ${incomingFields}
+      <div class="form-group" style="grid-column:1/-1"><label>Note</label><textarea id="tx-note" rows="2" placeholder="Optional note…">${esc(t.note||'')}</textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn ${type==='incoming'?'btn-success':'btn-danger'}" onclick="saveTx('${type}',${txId||'null'})">${isEdit ? 'Update' : 'Confirm'}</button>
+    </div>
+  </div>`);
+}
+
+function saveTx(type, txId=null) {
+  const productId = parseInt($('tx-product').value);
+  const qty = parseInt($('tx-qty').value);
+  if (!productId) { alert('Please select a product.'); return; }
+  if (!qty || qty < 1) { alert('Quantity must be at least 1.'); return; }
+
+  const products = DB.products();
+  const txs = DB.transactions();
+
+  if (txId) {
+    // Edit: reverse old qty effect, apply new
+    const old = txs.find(t => t.id === txId);
+    if (old) {
+      const oldProd = products.find(x => x.id === old.productId);
+      if (oldProd) {
+        oldProd.qty += old.type === 'incoming' ? -old.qty : old.qty;
+      }
+    }
+  }
+
+  const p = products.find(x => x.id === productId);
+  if (!p) return;
+
+  if (type === 'outgoing' && p.qty < qty) {
+    if (!confirm(`Only ${p.qty} ${p.unit} in stock. Record outgoing of ${qty} anyway?`)) return;
+  }
+
+  p.qty = type === 'incoming' ? p.qty + qty : Math.max(0, p.qty - qty);
+  DB.saveProducts(products);
+
+  const record = {
+    id: txId || DB.nextId(txs),
+    productId, productName: p.name, type, qty,
+    date: $('tx-date').value || new Date().toISOString().split('T')[0],
+    note: $('tx-note').value.trim(),
+  };
+
+  if (type === 'incoming') {
+    record.vendor = $('tx-vendor').value.trim();
+    record.cost_total = parseFloat($('tx-cost-total').value) || 0;
+    record.shipping = parseFloat($('tx-shipping').value) || 0;
+    record.cost_each = parseFloat($('tx-cost-each').value) || 0;
+  } else {
+    record.ref = $('tx-ref').value.trim();
+  }
+
+  if (txId) {
+    txs[txs.findIndex(t => t.id === txId)] = record;
+  } else {
+    txs.push(record);
+  }
+  DB.saveTransactions(txs);
+  closeModal();
+  if (currentView === 'transactions') transactions();
+  else if (currentView === 'inventory') inventory();
+  else dashboard();
+}
+
+// ── Orders ───────────────────────────────────────────────────────────────────
+function orders(tab='all', filter='') {
+  let ords = DB.orders();
+  if (tab !== 'all') ords = ords.filter(o => tab === 'customer' ? o.type === 'customer' : tab === 'supplier' ? o.type === 'supplier' : o.status === tab);
+  if (filter) {
+    const q = filter.toLowerCase();
+    ords = ords.filter(o => o.ref.toLowerCase().includes(q) || o.party.toLowerCase().includes(q));
+  }
+  ords = [...ords].sort((a,b) => b.date.localeCompare(a.date) || b.id - a.id);
+
+  const rows = ords.map(o => {
+    const [label, color] = orderStatusBadge(o.status);
+    const total = o.items.reduce((s,i) => s + i.qty * i.price, 0);
+    const itemSummary = o.items.slice(0,2).map(i => `${i.qty}× ${esc(i.name)}`).join(', ') + (o.items.length > 2 ? ` +${o.items.length-2} more` : '');
+    return `<tr onclick="viewOrder(${o.id})" style="cursor:pointer">
+      <td><strong>${esc(o.ref)}</strong></td>
+      <td><span class="badge ${o.type==='customer'?'blue':'gray'}">${o.type==='customer'?'Customer':'Supplier'}</span></td>
+      <td>${esc(o.party)}</td>
+      <td>${fmtDate(o.date)}</td>
+      <td class="text-muted" style="font-size:13px">${itemSummary}</td>
+      <td>$${fmt(total)}</td>
+      <td><span class="badge ${color}">${label}</span></td>
+      <td>
+        <div style="display:flex;gap:6px" onclick="event.stopPropagation()">
+          <button class="btn btn-outline btn-sm" onclick="editOrder(${o.id})">✏️</button>
+          <button class="btn btn-outline btn-sm" style="color:var(--danger)" onclick="deleteOrder(${o.id})">🗑</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="8"><div class="empty"><div class="icon">🛒</div><p>No orders found</p></div></td></tr>`;
+
+  setContent(`
+    <div class="tabs">
+      <div class="tab ${tab==='all'?'active':''}" onclick="orders('all')">All Orders</div>
+      <div class="tab ${tab==='customer'?'active':''}" onclick="orders('customer')">Customer</div>
+      <div class="tab ${tab==='supplier'?'active':''}" onclick="orders('supplier')">Supplier</div>
+      <div class="tab ${tab==='pending'?'active':''}" onclick="orders('pending')">Pending</div>
+    </div>
+    <div class="toolbar">
+      <div class="search"><input type="text" placeholder="Search by reference or party…" value="${esc(filter)}" oninput="orders('${tab}',this.value)"></div>
+      <button class="btn btn-primary" onclick="addOrder()">+ New Order</button>
+    </div>
+    <div class="card">
+      <div class="table-wrap"><table>
+        <thead><tr><th>Reference</th><th>Type</th><th>Party</th><th>Date</th><th>Items</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </div>
+  `);
+}
+
+function viewOrder(id) {
+  const o = DB.orders().find(x => x.id === id);
+  if (!o) return;
+  const [label, color] = orderStatusBadge(o.status);
+  const total = o.items.reduce((s,i) => s + i.qty * i.price, 0);
+  const itemRows = o.items.map(i => `<tr>
+    <td>${esc(i.name)}</td>
+    <td class="text-muted">${esc(i.sku)}</td>
+    <td>${i.qty}</td>
+    <td>$${fmt(i.price)}</td>
+    <td>$${fmt(i.qty * i.price)}</td>
+  </tr>`).join('');
+  openModal(`<div class="modal" style="max-width:600px">
+    <h2>${esc(o.ref)}</h2>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px">
+      <span class="badge ${o.type==='customer'?'blue':'gray'}">${o.type==='customer'?'Customer Order':'Supplier Order'}</span>
+      <span class="badge ${color}">${label}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
+      <div><div class="text-muted" style="margin-bottom:3px">Party</div><strong>${esc(o.party)}</strong></div>
+      <div><div class="text-muted" style="margin-bottom:3px">Date</div><strong>${fmtDate(o.date)}</strong></div>
+      ${o.notes ? `<div style="grid-column:1/-1"><div class="text-muted" style="margin-bottom:3px">Notes</div><span>${esc(o.notes)}</span></div>` : ''}
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Item</th><th>SKU</th><th>Qty</th><th>Unit Price</th><th>Subtotal</th></tr></thead>
+      <tbody>${itemRows}</tbody>
+      <tfoot><tr><td colspan="4" style="text-align:right;font-weight:600">Total</td><td><strong>$${fmt(total)}</strong></td></tr></tfoot>
+    </table></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">Close</button>
+      <button class="btn btn-primary" onclick="closeModal();editOrder(${id})">Edit Order</button>
+    </div>
+  </div>`);
+}
+
+function addOrder() { orderForm(null); }
+function editOrder(id) { orderForm(id); }
+
+function orderForm(id) {
+  const ords = DB.orders();
+  const o = id ? ords.find(x => x.id === id) : null;
+  const today = new Date().toISOString().split('T')[0];
+  const products = DB.products();
+  const productOpts = products.map(p => `<option value="${esc(p.sku)}" data-name="${esc(p.name)}" data-price="${p.price}">${esc(p.name)} (${esc(p.sku)})</option>`).join('');
+
+  const items = o ? o.items : [{ name:'', sku:'', qty:1, price:0 }];
+  function itemRow(item, i) {
+    return `<tr id="item-row-${i}">
+      <td><select onchange="fillItem(this,${i})" class="item-sku-${i}" style="width:100%;min-width:140px">
+        <option value="">Select…</option>${productOpts.replace(`value="${esc(item.sku)}"`, `value="${esc(item.sku)}" selected`)}
+        <option value="__custom__" ${!products.find(p=>p.sku===item.sku)&&item.sku?'selected':''}>Custom…</option>
+      </select></td>
+      <td><input id="item-name-${i}" value="${esc(item.name)}" placeholder="Item name" style="min-width:120px"></td>
+      <td><input id="item-qty-${i}" type="number" min="1" value="${item.qty}" style="width:70px"></td>
+      <td><input id="item-price-${i}" type="number" min="0" step="0.01" value="${fmt(item.price)}" style="width:90px"></td>
+      <td><button class="btn btn-outline btn-sm" style="color:var(--danger)" onclick="removeItemRow(${i})">✕</button></td>
+    </tr>`;
+  }
+
+  openModal(`<div class="modal" style="max-width:640px">
+    <h2>${o ? 'Edit Order' : 'New Order'}</h2>
+    <div class="form-grid" style="margin-bottom:16px">
+      <div class="form-group"><label>Reference *</label><input id="o-ref" value="${esc(o?.ref||'')}" placeholder="ORD-3001"></div>
+      <div class="form-group"><label>Type</label>
+        <select id="o-type">
+          <option value="customer" ${o?.type==='customer'?'selected':''}>Customer Order</option>
+          <option value="supplier" ${o?.type==='supplier'?'selected':''}>Supplier Order</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Party *</label><input id="o-party" value="${esc(o?.party||'')}" placeholder="Customer / Supplier name"></div>
+      <div class="form-group"><label>Date</label><input id="o-date" type="date" value="${o?.date||today}"></div>
+      <div class="form-group"><label>Status</label>
+        <select id="o-status">
+          ${['pending','confirmed','shipped','delivered','cancelled'].map(s=>`<option value="${s}" ${o?.status===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label>Notes</label><input id="o-notes" value="${esc(o?.notes||'')}" placeholder="Optional"></div>
+    </div>
+    <div style="margin-bottom:10px;font-weight:600;font-size:14px">Order Items</div>
+    <div class="table-wrap"><table id="items-table">
+      <thead><tr><th>Product</th><th>Name</th><th>Qty</th><th>Unit Price</th><th></th></tr></thead>
+      <tbody id="items-body">${items.map((it,i)=>itemRow(it,i)).join('')}</tbody>
+    </table></div>
+    <button class="btn btn-outline btn-sm mt-16" onclick="addItemRow()">+ Add Item</button>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveOrder(${id||'null'})">Save Order</button>
+    </div>
+  </div>`);
+  window._itemCount = items.length;
+}
+
+window.fillItem = function(sel, i) {
+  const opt = sel.options[sel.selectedIndex];
+  if (sel.value === '__custom__') {
+    $(`item-name-${i}`).value = '';
+    $(`item-price-${i}`).value = '0';
+    return;
+  }
+  if (opt.dataset.name) {
+    $(`item-name-${i}`).value = opt.dataset.name;
+    $(`item-price-${i}`).value = opt.dataset.price || '0';
+  }
+};
+
+window.addItemRow = function() {
+  const i = window._itemCount++;
+  const products = DB.products();
+  const productOpts = products.map(p => `<option value="${esc(p.sku)}" data-name="${esc(p.name)}" data-price="${p.price}">${esc(p.name)} (${esc(p.sku)})</option>`).join('');
+  const row = document.createElement('tr');
+  row.id = `item-row-${i}`;
+  row.innerHTML = `
+    <td><select onchange="fillItem(this,${i})" style="width:100%;min-width:140px">
+      <option value="">Select…</option>${productOpts}
+      <option value="__custom__">Custom…</option>
+    </select></td>
+    <td><input id="item-name-${i}" placeholder="Item name" style="min-width:120px"></td>
+    <td><input id="item-qty-${i}" type="number" min="1" value="1" style="width:70px"></td>
+    <td><input id="item-price-${i}" type="number" min="0" step="0.01" value="0" style="width:90px"></td>
+    <td><button class="btn btn-outline btn-sm" style="color:var(--danger)" onclick="removeItemRow(${i})">✕</button></td>`;
+  $('items-body').appendChild(row);
+};
+
+window.removeItemRow = function(i) {
+  const row = $(`item-row-${i}`);
+  if (row) row.remove();
+};
+
+function saveOrder(id) {
+  const ref = $('o-ref').value.trim();
+  const party = $('o-party').value.trim();
+  if (!ref || !party) { alert('Reference and party are required.'); return; }
+
+  const items = [];
+  $('items-body').querySelectorAll('tr').forEach(row => {
+    const ri = row.id.replace('item-row-','');
+    const name = $(`item-name-${ri}`)?.value.trim();
+    const skuSel = row.querySelector('select');
+    const sku = skuSel?.value === '__custom__' ? '' : skuSel?.value || '';
+    const qty = parseInt($(`item-qty-${ri}`)?.value) || 1;
+    const price = parseFloat($(`item-price-${ri}`)?.value) || 0;
+    if (name) items.push({ name, sku, qty, price });
+  });
+  if (!items.length) { alert('Add at least one item.'); return; }
+
+  const ords = DB.orders();
+  const o = {
+    id: id || DB.nextId(ords),
+    ref, party,
+    type: $('o-type').value,
+    date: $('o-date').value,
+    status: $('o-status').value,
+    notes: $('o-notes').value.trim(),
+    items,
+  };
+  if (id) { ords[ords.findIndex(x => x.id === id)] = o; }
+  else { ords.push(o); }
+  DB.saveOrders(ords);
+  closeModal();
+  orders();
+}
+
+function deleteOrder(id) {
+  if (!confirm('Delete this order?')) return;
+  DB.saveOrders(DB.orders().filter(o => o.id !== id));
+  orders();
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+migrateData();
+navigate('dashboard');
+</script>
+</body>
+</html>
