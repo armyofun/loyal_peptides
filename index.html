@@ -380,6 +380,14 @@ function dashboard() {
 }
 
 // ── Inventory ────────────────────────────────────────────────────────────────
+let _invSort = { col: 'name', dir: 1 };
+
+function invSortBy(col) {
+  if (_invSort.col === col) _invSort.dir *= -1;
+  else _invSort = { col, dir: 1 };
+  inventory(document.getElementById('inv-search')?.value || '');
+}
+
 function inventory(filter='') {
   let products = DB.products();
   if (filter) {
@@ -388,6 +396,25 @@ function inventory(filter='') {
       p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || p.category.toLowerCase().includes(q)
     );
   }
+
+  const { col, dir } = _invSort;
+  products.sort((a, b) => {
+    let av, bv;
+    if (col === 'name') { av = a.name.toLowerCase(); bv = b.name.toLowerCase(); }
+    else if (col === 'sku') { av = a.sku.toLowerCase(); bv = b.sku.toLowerCase(); }
+    else if (col === 'qty') { av = a.qty; bv = b.qty; }
+    else if (col === 'cost') { av = a.cost; bv = b.cost; }
+    else if (col === 'price') { av = a.price; bv = b.price; }
+    else if (col === 'fff') { av = a.fff_price; bv = b.fff_price; }
+    else if (col === 'status') { av = stockStatus(a.qty, a.reorder)[0]; bv = stockStatus(b.qty, b.reorder)[0]; }
+    else { av = a.name.toLowerCase(); bv = b.name.toLowerCase(); }
+    if (av < bv) return -dir;
+    if (av > bv) return dir;
+    return 0;
+  });
+
+  const arrow = c => _invSort.col === c ? (_invSort.dir === 1 ? ' ▲' : ' ▼') : ' ⇅';
+  const th = (label, c) => `<th style="cursor:pointer;user-select:none" onclick="invSortBy('${c}')">${label}<span style="opacity:${_invSort.col===c?1:0.3};font-size:10px">${arrow(c)}</span></th>`;
 
   const rows = products.map(p => {
     const [label, color] = stockStatus(p.qty, p.reorder);
@@ -434,7 +461,7 @@ function inventory(filter='') {
     </div>
     <div class="card">
       <div class="table-wrap"><table>
-        <thead><tr><th>Name</th><th>SKU</th><th>Qty / On Order</th><th>John / Ramon</th><th>Status</th><th>Avg Cost</th><th>Price</th><th>F&amp;F</th><th>Actions</th></tr></thead>
+        <thead><tr>${th('Name','name')}${th('SKU','sku')}${th('Qty / On Order','qty')}<th>John / Ramon</th>${th('Status','status')}${th('Avg Cost','cost')}${th('Price','price')}${th('F&F','fff')}<th>Actions</th></tr></thead>
         <tbody>${rows}</tbody>
       </table></div>
     </div>
