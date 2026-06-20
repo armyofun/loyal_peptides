@@ -1116,18 +1116,41 @@ async function testGhToken() {
 }
 
 // ── Customer view ─────────────────────────────────────────────────────────────
-function customerView() {
-  document.getElementById('app').style.display = 'none';
-  migrateData();
-  const products = DB.products();
+let _cvSort = { col: 'name', dir: 1 };
 
+function cvSortBy(col) {
+  if (_cvSort.col === col) _cvSort.dir *= -1;
+  else _cvSort = { col, dir: 1 };
+  renderCustomerTable();
+}
+
+function renderCustomerTable() {
+  const products = DB.products();
   const openOrders = DB.orders().filter(o => o.type === 'supplier' && !['pending','delivered'].includes(o.status));
   const onOrderBySku = {};
   openOrders.forEach(o => (o.items||[]).forEach(item => {
     onOrderBySku[item.sku] = (onOrderBySku[item.sku] || 0) + (item.qty || 0);
   }));
 
-  const rows = products.map(p => {
+  const { col, dir } = _cvSort;
+  const sorted = [...products].sort((a, b) => {
+    let av, bv;
+    if (col === 'name') { av = a.name.toLowerCase(); bv = b.name.toLowerCase(); }
+    else if (col === 'sku') { av = a.sku.toLowerCase(); bv = b.sku.toLowerCase(); }
+    else if (col === 'qty') { av = a.qty; bv = b.qty; }
+    else if (col === 'status') { av = stockStatus(a.qty, a.reorder)[0]; bv = stockStatus(b.qty, b.reorder)[0]; }
+    else if (col === 'singles') { av = a.singles_price_us || 0; bv = b.singles_price_us || 0; }
+    else if (col === 'kit') { av = a.kit_price || 0; bv = b.kit_price || 0; }
+    else { av = a.name.toLowerCase(); bv = b.name.toLowerCase(); }
+    if (av < bv) return -dir;
+    if (av > bv) return dir;
+    return 0;
+  });
+
+  const arrow = c => _cvSort.col === c ? (_cvSort.dir === 1 ? ' ▲' : ' ▼') : ' ⇅';
+  const th = (label, c) => `<th style="cursor:pointer;user-select:none" onclick="cvSortBy('${c}')">${label}<span style="opacity:${_cvSort.col===c?1:0.3};font-size:10px">${arrow(c)}</span></th>`;
+
+  const rows = sorted.map(p => {
     const onOrder = onOrderBySku[p.sku] || 0;
     const [label, color] = stockStatus(p.qty, p.reorder);
     return `<tr>
@@ -1145,6 +1168,15 @@ function customerView() {
     </tr>`;
   }).join('');
 
+  const tbody = document.getElementById('cv-tbody');
+  const thead = document.getElementById('cv-thead');
+  if (tbody) tbody.innerHTML = rows;
+  if (thead) thead.innerHTML = `<tr>${th('Name','name')}${th('SKU','sku')}${th('Qty / On Order','qty')}${th('Status','status')}${th('Singles (US)','singles')}${th('Kit Price (CO)','kit')}</tr>`;
+}
+
+function customerView() {
+  document.getElementById('app').style.display = 'none';
+  migrateData();
   document.body.insertAdjacentHTML('beforeend', `
     <div style="min-height:100vh;background:var(--bg);display:flex;flex-direction:column">
       <header style="background:var(--text);padding:16px 24px;display:flex;align-items:center;gap:14px">
@@ -1169,13 +1201,14 @@ function customerView() {
         </div>
         <div class="card">
           <div class="table-wrap"><table>
-            <thead><tr><th>Name</th><th>SKU</th><th>Qty / On Order</th><th>Status</th><th>Singles (US)</th><th>Kit Price (CO)</th></tr></thead>
-            <tbody>${rows}</tbody>
+            <thead id="cv-thead"></thead>
+            <tbody id="cv-tbody"></tbody>
           </table></div>
         </div>
       </div>
     </div>
   `);
+  renderCustomerTable();
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
