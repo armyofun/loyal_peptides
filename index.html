@@ -331,6 +331,9 @@ function dashboard() {
 
   const recentTx = [...transactions].sort((a,b) => b.date.localeCompare(a.date)).slice(0,5);
   const pendingOrders = orders.filter(o => o.status === 'pending').length;
+  const shippedSupplier = orders.filter(o => o.type === 'supplier' && o.status === 'shipped');
+  const shippedSupplierCount = shippedSupplier.length;
+  const shippedSupplierValue = shippedSupplier.reduce((s,o) => s + o.items.reduce((si,i) => si + i.qty * i.price, 0), 0);
 
   const txRows = recentTx.map(t => `
     <tr>
@@ -359,6 +362,8 @@ function dashboard() {
       <div class="stat-card warning"><div class="label">Low Stock</div><div class="value">${lowStock}</div></div>
       <div class="stat-card success"><div class="label">Inventory Value</div><div class="value">$${fmt(totalValue)}</div></div>
       <div class="stat-card blue" style="--blue:#3b82f6"><div class="label">Pending Orders</div><div class="value" style="color:#3b82f6">${pendingOrders}</div></div>
+      <div class="stat-card" style="--blue:#8b5cf6"><div class="label">Shipped Supplier Orders</div><div class="value" style="color:#8b5cf6">${shippedSupplierCount}</div></div>
+      <div class="stat-card" style="--blue:#8b5cf6"><div class="label">Shipped Supplier Value</div><div class="value" style="color:#8b5cf6">$${fmt(shippedSupplierValue)}</div></div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px">
       <div class="card">
