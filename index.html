@@ -161,6 +161,19 @@
   .text-muted { color: var(--text-muted); font-size: 13px; }
   .mt-16 { margin-top: 16px; }
   .gap-8 { gap: 8px; }
+
+  /* PIN screen */
+  #pin-screen { position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; z-index:999; }
+  #pin-screen .pin-box { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:36px; width:100%; max-width:360px; text-align:center; }
+  #pin-screen .pin-logo { display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:24px; }
+  #pin-screen h2 { font-size:18px; font-weight:700; margin-bottom:6px; }
+  #pin-screen .pin-sub { color:var(--text-muted); font-size:13px; margin-bottom:24px; }
+  #pin-screen .pin-error { color:var(--danger); font-size:13px; min-height:18px; margin-top:8px; }
+  #pin-screen .pin-back { display:block; margin-top:16px; color:var(--text-muted); font-size:13px; text-decoration:none; }
+  #pin-screen .pin-back:hover { color:var(--text); }
+
+  /* Sync indicator */
+  #sync-status { font-size:12px; font-weight:500; transition:color .3s; }
 </style>
 </head>
 <body>
@@ -190,6 +203,7 @@
       <a data-view="inventory"><span class="icon">📦</span> Inventory</a>
       <a data-view="transactions"><span class="icon">🔄</span> Transactions</a>
       <a data-view="orders"><span class="icon">🛒</span> Orders</a>
+      <a data-view="settings"><span class="icon">⚙️</span> Settings</a>
     </nav>
   </aside>
 
@@ -198,7 +212,10 @@
     <div id="topbar">
       <button id="menu-btn" onclick="toggleMenu()">☰</button>
       <h1 id="page-title">Dashboard</h1>
-      <div id="topbar-actions"></div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <span id="sync-status"></span>
+        <div id="topbar-actions"></div>
+      </div>
     </div>
     <div id="content"></div>
   </div>
@@ -238,7 +255,13 @@ function migrateData() {
 
 // ── Router ───────────────────────────────────────────────────────────────────
 let currentView = 'dashboard';
-const views = { dashboard, inventory, transactions, orders };
+const views = { dashboard, inventory, transactions, orders, settings };
+
+// Wrap DB saves to trigger GitHub sync
+['saveProducts','saveTransactions','saveOrders'].forEach(fn => {
+  const orig = DB[fn].bind(DB);
+  DB[fn] = v => { orig(v); scheduleSyncToGitHub(); };
+});
 
 function navigate(view) {
   currentView = view;
@@ -877,6 +900,174 @@ function deleteOrder(id) {
   orders();
 }
 
+// ── Auth ──────────────────────────────────────────────────────────────────────
+let ADMIN_PIN = '1234'; // sync-managed
+
+function showPinModal() {
+  $('app').style.display = 'none';
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="pin-screen">
+      <div class="pin-box">
+        <div class="pin-logo">
+          <div style="background:#1e293b;border-radius:8px;padding:4px 5px">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 201" style="height:32px;width:auto">
+              <g transform="translate(-32,220) scale(0.1,-0.1)" fill="#fff" stroke="none">
+                <path d="M624 2172 c-98 -71 -193 -218 -218 -337 -45 -212 -45 -204 -5 -290 29 -61 31 -72 25 -138 -3 -40 -9 -106 -12 -147 -4 -44 -2 -98 5 -128 15 -70 63 -166 113 -225 35 -42 41 -58 50 -120 6 -40 16 -108 24 -151 7 -44 12 -81 10 -83 -7 -7 -49 103 -76 197 -15 52 -33 96 -39 98 -6 2 -11 -4 -11 -13 0 -9 -25 -74 -55 -144 -90 -211 -115 -303 -115 -428 l0 -73 274 0 274 0 -34 67 c-23 46 -34 82 -34 111 0 23 2 42 4 42 3 0 21 -9 40 -21 43 -25 126 -51 126 -40 0 5 -18 40 -41 79 -50 87 -55 129 -18 151 24 13 31 13 80 -9 74 -32 180 -33 266 -1 49 17 66 20 83 11 11 -6 20 -16 21 -23 4 -42 -7 -80 -37 -136 -19 -35 -32 -66 -30 -69 9 -8 86 20 124 46 l35 23 -5 -65 c-4 -43 -14 -80 -31 -110 l-26 -46 270 0 269 0 0 71 c0 39 -9 105 -20 147 -21 81 -64 207 -78 226 -8 11 -75 167 -86 200 -9 26 -15 17 -32 -51 -8 -32 -19 -75 -25 -96 -11 -46 -70 -172 -63 -137 12 65 34 228 34 254 0 19 20 59 57 114 31 46 65 109 75 140 22 67 23 192 3 277 -21 87 -19 118 16 201 20 47 29 85 26 102 -39 209 -75 303 -158 407 -52 66 -133 135 -157 135 -5 0 -15 -21 -21 -47 -14 -57 -58 -155 -72 -164 -6 -3 -27 -3 -48 2 -56 13 -135 11 -212 -7 -64 -14 -74 -14 -136 1 -70 18 -131 20 -217 10 l-51 -7 -26 54 c-14 29 -34 79 -43 111 -9 31 -20 57 -25 57 -4 0 -26 -13 -47 -28z"/>
+              </g>
+            </svg>
+          </div>
+          <div style="text-align:left">
+            <div style="font-size:15px;font-weight:800;letter-spacing:1.5px">LOYAL</div>
+            <div style="font-size:10px;font-weight:500;letter-spacing:2.5px;color:var(--text-muted)">PEPTIDES</div>
+          </div>
+        </div>
+        <h2>Admin Access</h2>
+        <p class="pin-sub">Enter your PIN to continue.</p>
+        <input type="password" id="pin-input" placeholder="PIN" style="text-align:center;font-size:20px;letter-spacing:6px"
+          onkeydown="if(event.key==='Enter')submitPin()">
+        <div class="pin-error" id="pin-error"></div>
+        <button class="btn btn-primary" style="width:100%;margin-top:16px" onclick="submitPin()">Enter</button>
+        <a href="./" class="pin-back">← Back to inventory</a>
+      </div>
+    </div>`);
+  setTimeout(() => $('pin-input')?.focus(), 50);
+}
+
+function submitPin() {
+  const entered = $('pin-input').value;
+  if (entered === ADMIN_PIN) {
+    sessionStorage.setItem('sf_admin', '1');
+    document.getElementById('pin-screen').remove();
+    $('app').style.display = '';
+    migrateData();
+    navigate('dashboard');
+  } else {
+    $('pin-error').textContent = 'Incorrect PIN — try again.';
+    $('pin-input').value = '';
+    $('pin-input').focus();
+  }
+}
+
+// ── GitHub Sync ────────────────────────────────────────────────────────────────
+const GH_REPO = 'armyofun/loyal_peptides';
+const GH_FILE = 'index.html';
+let _syncTimer = null;
+
+function scheduleSyncToGitHub() {
+  if (!sessionStorage.getItem('sf_admin')) return;
+  clearTimeout(_syncTimer);
+  setSyncStatus('pending');
+  _syncTimer = setTimeout(syncToGitHub, 2500);
+}
+
+function setSyncStatus(s) {
+  const el = $('sync-status');
+  if (!el) return;
+  const map = { pending:['● Pending','#f59e0b'], syncing:['↻ Syncing…','#3b82f6'], synced:['✓ Saved','#10b981'], error:['✗ Sync failed','#ef4444'], notoken:['⚠ No token — see Settings','#f59e0b'] };
+  const [txt, col] = map[s] || ['',''];
+  el.textContent = txt; el.style.color = col;
+}
+
+function toBase64(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = ''; bytes.forEach(b => bin += String.fromCharCode(b));
+  return btoa(bin);
+}
+function fromBase64(b64) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+async function syncToGitHub() {
+  const token = localStorage.getItem('sf_gh_token');
+  if (!token) { setSyncStatus('notoken'); return; }
+  setSyncStatus('syncing');
+  try {
+    const res = await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github.v3+json' }
+    });
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    const current = fromBase64(data.content.replace(/\n/g, ''));
+    const newContent = current.split('\n').map(line => {
+      const t = line.trimStart();
+      if (t.startsWith('const _P=')) return `const _P=${JSON.stringify(DB.products(), null, 0)};`;
+      if (t.startsWith('const _T=')) return `const _T=${JSON.stringify(DB.transactions(), null, 0)};`;
+      if (t.startsWith('const _O=')) return `const _O=${JSON.stringify(DB.orders(), null, 0)};`;
+      if (t.startsWith('let ADMIN_PIN =')) return `let ADMIN_PIN = '${ADMIN_PIN}'; // sync-managed`;
+      return line;
+    }).join('\n');
+    const put = await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/vnd.github.v3+json' },
+      body: JSON.stringify({ message: 'Update inventory data', content: toBase64(newContent), sha: data.sha })
+    });
+    if (!put.ok) { const e = await put.json(); throw new Error(e.message || put.status); }
+    setSyncStatus('synced');
+    setTimeout(() => setSyncStatus(''), 4000);
+  } catch(e) {
+    console.error('Sync failed:', e);
+    setSyncStatus('error');
+  }
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+function settings() {
+  const token = localStorage.getItem('sf_gh_token') || '';
+  setContent(`
+    <div style="max-width:480px;display:flex;flex-direction:column;gap:20px">
+      <div class="card">
+        <div class="section-hdr"><h2>Admin PIN</h2></div>
+        <div class="form-grid">
+          <div class="form-group"><label>Current PIN</label><input type="password" id="s-old" placeholder="Current PIN"></div>
+          <div class="form-group"><label>New PIN</label><input type="password" id="s-new" placeholder="New PIN"></div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-primary" onclick="changePin()">Update PIN</button></div>
+      </div>
+      <div class="card">
+        <div class="section-hdr"><h2>GitHub Sync</h2></div>
+        <p class="text-muted" style="margin-bottom:16px">A Personal Access Token with <strong>repo</strong> write scope lets the app commit data changes back to GitHub automatically.</p>
+        <div class="form-group"><label>Personal Access Token</label><input type="password" id="s-token" value="${esc(token)}" placeholder="ghp_…"></div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="testGhToken()">Test</button>
+          <button class="btn btn-primary" onclick="saveGhToken()">Save Token</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-hdr"><h2>Force Sync Now</h2></div>
+        <p class="text-muted" style="margin-bottom:16px">Manually push current data to GitHub.</p>
+        <button class="btn btn-primary" onclick="syncToGitHub()">Sync Now</button>
+      </div>
+    </div>`);
+}
+
+function changePin() {
+  const oldVal = $('s-old').value;
+  const newVal = $('s-new').value.trim();
+  if (oldVal !== ADMIN_PIN) { alert('Current PIN is incorrect.'); return; }
+  if (!newVal) { alert('New PIN cannot be empty.'); return; }
+  ADMIN_PIN = newVal;
+  scheduleSyncToGitHub();
+  $('s-old').value = ''; $('s-new').value = '';
+  alert('PIN updated — syncing to GitHub.');
+}
+
+function saveGhToken() {
+  const t = $('s-token').value.trim();
+  if (t) localStorage.setItem('sf_gh_token', t);
+  else localStorage.removeItem('sf_gh_token');
+  alert('Token saved locally.');
+}
+
+async function testGhToken() {
+  const t = $('s-token').value.trim();
+  if (!t) { alert('Enter a token first.'); return; }
+  const res = await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`, { headers: { Authorization: `Bearer ${t}` } });
+  alert(res.ok ? '✓ Token works!' : `✗ Failed (${res.status}) — check the token has repo write access.`);
+}
+
 // ── Customer view ─────────────────────────────────────────────────────────────
 function customerView() {
   document.getElementById('app').style.display = 'none';
@@ -934,11 +1125,16 @@ function customerView() {
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
-if (new URLSearchParams(window.location.search).has('customer')) {
-  customerView();
+const _params = new URLSearchParams(window.location.search);
+if (_params.has('admin')) {
+  if (sessionStorage.getItem('sf_admin') === '1') {
+    migrateData();
+    navigate('dashboard');
+  } else {
+    showPinModal();
+  }
 } else {
-  migrateData();
-  navigate('dashboard');
+  customerView();
 }
 </script>
 </body>
