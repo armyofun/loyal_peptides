@@ -418,6 +418,13 @@ function inventory(filter='') {
   const arrow = c => _invSort.col === c ? (_invSort.dir === 1 ? ' ▲' : ' ▼') : ' ⇅';
   const th = (label, c) => `<th style="cursor:pointer;user-select:none" onclick="invSortBy('${c}')">${label}<span style="opacity:${_invSort.col===c?1:0.3};font-size:10px">${arrow(c)}</span></th>`;
 
+  // Build on-order totals dynamically from open supplier orders
+  const openOrders = DB.orders().filter(o => o.type === 'supplier' && ['confirmed','pending'].includes(o.status));
+  const onOrderBySku = {};
+  openOrders.forEach(o => (o.items||[]).forEach(item => {
+    onOrderBySku[item.sku] = (onOrderBySku[item.sku] || 0) + (item.qty || 0);
+  }));
+
   const rows = products.map(p => {
     const [label, color] = stockStatus(p.qty, p.reorder);
     const pct = Math.min(100, p.reorder > 0 ? (p.qty / (p.reorder * 3)) * 100 : 100);
@@ -426,10 +433,8 @@ function inventory(filter='') {
     if ((p.qty_john||0) > 0) splitParts.push(`J:${p.qty_john}`);
     if ((p.qty_ramon||0) > 0) splitParts.push(`R:${p.qty_ramon}`);
     const splitLabel = splitParts.length ? splitParts.join(' / ') : '—';
-    const ordParts = [];
-    if ((p.ord_john||0) > 0) ordParts.push(`J:${p.ord_john}`);
-    if ((p.ord_ramon||0) > 0) ordParts.push(`R:${p.ord_ramon}`);
-    const ordLabel = ordParts.length ? `<span class="badge blue" style="font-size:11px">${ordParts.join(' / ')} on order</span>` : '';
+    const onOrder = onOrderBySku[p.sku] || 0;
+    const ordLabel = onOrder > 0 ? `<span class="badge blue" style="font-size:11px">${onOrder} on order</span>` : '';
     return `<tr>
       <td><strong>${esc(p.name)}</strong></td>
       <td class="text-muted">${esc(p.sku)}</td>
