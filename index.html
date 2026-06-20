@@ -1023,7 +1023,7 @@ function fromBase64(b64) {
 }
 
 async function syncToGitHub() {
-  const token = localStorage.getItem('sf_gh_token');
+  const token = localStorage.getItem('lp_gh_token');
   if (!token) { setSyncStatus('notoken'); return; }
   setSyncStatus('syncing');
   try {
@@ -1057,7 +1057,7 @@ async function syncToGitHub() {
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 function settings() {
-  const token = localStorage.getItem('sf_gh_token') || '';
+  const token = localStorage.getItem('lp_gh_token') || '';
   setContent(`
     <div style="max-width:480px;display:flex;flex-direction:column;gap:20px">
       <div class="card">
@@ -1098,8 +1098,8 @@ function changePin() {
 
 function saveGhToken() {
   const t = $('s-token').value.trim();
-  if (t) localStorage.setItem('sf_gh_token', t);
-  else localStorage.removeItem('sf_gh_token');
+  if (t) localStorage.setItem('lp_gh_token', t);
+  else localStorage.removeItem('lp_gh_token');
   alert('Token saved locally.');
 }
 
