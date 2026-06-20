@@ -1135,7 +1135,6 @@ function customerView() {
         </div>
       </td>
       <td><span class="badge ${color}">${label}</span></td>
-      <td>${p.price > 0 ? '<strong>$'+fmt(p.price)+'</strong>' : '<span class="text-muted">—</span>'}</td>
       <td>${p.singles_price_us > 0 ? '<strong>$'+fmt(p.singles_price_us)+'</strong>' : '<span class="text-muted">—</span>'}</td>
       <td>${p.kit_price > 0 ? '<strong>$'+fmt(p.kit_price)+'</strong>' : '<span class="text-muted">—</span>'}</td>
     </tr>`;
@@ -1165,7 +1164,7 @@ function customerView() {
         </div>
         <div class="card">
           <div class="table-wrap"><table>
-            <thead><tr><th>Name</th><th>SKU</th><th>Qty / On Order</th><th>Status</th><th>Price</th><th>Singles (US)</th><th>Kit Price</th></tr></thead>
+            <thead><tr><th>Name</th><th>SKU</th><th>Qty / On Order</th><th>Status</th><th>Singles (US)</th><th>Kit Price</th></tr></thead>
             <tbody>${rows}</tbody>
           </table></div>
         </div>
