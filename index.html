@@ -1116,8 +1116,14 @@ function customerView() {
   migrateData();
   const products = DB.products();
 
+  const openOrders = DB.orders().filter(o => o.type === 'supplier' && !['pending','delivered'].includes(o.status));
+  const onOrderBySku = {};
+  openOrders.forEach(o => (o.items||[]).forEach(item => {
+    onOrderBySku[item.sku] = (onOrderBySku[item.sku] || 0) + (item.qty || 0);
+  }));
+
   const rows = products.map(p => {
-    const ordTotal = (p.ord_john||0) + (p.ord_ramon||0);
+    const onOrder = onOrderBySku[p.sku] || 0;
     const [label, color] = stockStatus(p.qty, p.reorder);
     return `<tr>
       <td><strong>${esc(p.name)}</strong></td>
@@ -1125,7 +1131,7 @@ function customerView() {
       <td>
         <div style="display:flex;align-items:center;gap:8px">
           <strong>${p.qty}</strong>
-          ${ordTotal > 0 ? `<span class="badge blue" style="font-size:11px">${ordTotal} on order</span>` : ''}
+          ${onOrder > 0 ? `<span class="badge blue" style="font-size:11px">${onOrder} on order</span>` : ''}
         </div>
       </td>
       <td><span class="badge ${color}">${label}</span></td>
