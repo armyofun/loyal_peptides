@@ -406,6 +406,8 @@ function inventory(filter='') {
     else if (col === 'cost') { av = a.cost; bv = b.cost; }
     else if (col === 'price') { av = a.price; bv = b.price; }
     else if (col === 'fff') { av = a.fff_price; bv = b.fff_price; }
+    else if (col === 'singles_us') { av = a.singles_price_us; bv = b.singles_price_us; }
+    else if (col === 'kit') { av = a.kit_price; bv = b.kit_price; }
     else if (col === 'status') { av = stockStatus(a.qty, a.reorder)[0]; bv = stockStatus(b.qty, b.reorder)[0]; }
     else { av = a.name.toLowerCase(); bv = b.name.toLowerCase(); }
     if (av < bv) return -dir;
@@ -443,6 +445,8 @@ function inventory(filter='') {
       <td class="text-muted">$${fmt(p.cost)}</td>
       <td class="text-muted">${p.price > 0 ? '$'+fmt(p.price) : '—'}</td>
       <td class="text-muted">${p.fff_price > 0 ? '$'+fmt(p.fff_price) : '—'}</td>
+      <td class="text-muted">${p.singles_price_us > 0 ? '$'+fmt(p.singles_price_us) : '—'}</td>
+      <td class="text-muted">${p.kit_price > 0 ? '$'+fmt(p.kit_price) : '—'}</td>
       <td>
         <div style="display:flex;gap:6px">
           <button class="btn btn-outline btn-sm" onclick="txModal(${p.id},'incoming')">+ In</button>
@@ -452,7 +456,7 @@ function inventory(filter='') {
         </div>
       </td>
     </tr>`;
-  }).join('') || `<tr><td colspan="9"><div class="empty"><div class="icon">📦</div><p>No products found</p></div></td></tr>`;
+  }).join('') || `<tr><td colspan="11"><div class="empty"><div class="icon">📦</div><p>No products found</p></div></td></tr>`;
 
   setContent(`
     <div class="toolbar">
@@ -461,7 +465,7 @@ function inventory(filter='') {
     </div>
     <div class="card">
       <div class="table-wrap"><table>
-        <thead><tr>${th('Name','name')}${th('SKU','sku')}${th('Qty / On Order','qty')}<th>John / Ramon</th>${th('Status','status')}${th('Avg Cost','cost')}${th('Price','price')}${th('F&F','fff')}<th>Actions</th></tr></thead>
+        <thead><tr>${th('Name','name')}${th('SKU','sku')}${th('Qty / On Order','qty')}<th>John / Ramon</th>${th('Status','status')}${th('Avg Cost','cost')}${th('Price','price')}${th('F&F','fff')}${th('Singles (US)','singles_us')}${th('Kit Price','kit')}<th>Actions</th></tr></thead>
         <tbody>${rows}</tbody>
       </table></div>
     </div>
@@ -481,6 +485,8 @@ function addProduct() {
       <div class="form-group"><label>Avg Cost ($)</label><input id="f-cost" type="number" min="0" step="0.01" value="0"></div>
       <div class="form-group"><label>Price ($)</label><input id="f-price" type="number" min="0" step="0.01" value="0"></div>
       <div class="form-group"><label>F&amp;F Price ($)</label><input id="f-fff" type="number" min="0" step="0.01" value="0"></div>
+      <div class="form-group"><label>Singles Price US ($)</label><input id="f-singles" type="number" min="0" step="0.01" value="0"></div>
+      <div class="form-group"><label>Kit Price ($)</label><input id="f-kit" type="number" min="0" step="0.01" value="0"></div>
       <div class="form-group"><label>John Qty</label><input id="f-qjohn" type="number" min="0" value="0"></div>
       <div class="form-group"><label>Ramon Qty</label><input id="f-qramon" type="number" min="0" value="0"></div>
     </div>
@@ -507,6 +513,8 @@ function editProduct(id) {
       <div class="form-group"><label>Avg Cost ($)</label><input id="f-cost" type="number" min="0" step="0.01" value="${p.cost}"></div>
       <div class="form-group"><label>Price ($)</label><input id="f-price" type="number" min="0" step="0.01" value="${p.price}"></div>
       <div class="form-group"><label>F&amp;F Price ($)</label><input id="f-fff" type="number" min="0" step="0.01" value="${p.fff_price||0}"></div>
+      <div class="form-group"><label>Singles Price US ($)</label><input id="f-singles" type="number" min="0" step="0.01" value="${p.singles_price_us||0}"></div>
+      <div class="form-group"><label>Kit Price ($)</label><input id="f-kit" type="number" min="0" step="0.01" value="${p.kit_price||0}"></div>
       <div class="form-group"><label>John Qty</label><input id="f-qjohn" type="number" min="0" value="${p.qty_john||0}"></div>
       <div class="form-group"><label>Ramon Qty</label><input id="f-qramon" type="number" min="0" value="${p.qty_ramon||0}"></div>
     </div>
@@ -535,6 +543,8 @@ function saveProduct(id) {
     cost: parseFloat($('f-cost').value) || 0,
     price: parseFloat($('f-price').value) || 0,
     fff_price: parseFloat($('f-fff').value) || 0,
+    singles_price_us: parseFloat($('f-singles').value) || 0,
+    kit_price: parseFloat($('f-kit').value) || 0,
     qty_john: qjohn, qty_ramon: qramon,
     ord_john: existingP?.ord_john || 0, ord_ramon: existingP?.ord_ramon || 0,
   };
@@ -1115,6 +1125,8 @@ function customerView() {
       </td>
       <td><span class="badge ${color}">${label}</span></td>
       <td>${p.price > 0 ? '<strong>$'+fmt(p.price)+'</strong>' : '<span class="text-muted">—</span>'}</td>
+      <td>${p.singles_price_us > 0 ? '<strong>$'+fmt(p.singles_price_us)+'</strong>' : '<span class="text-muted">—</span>'}</td>
+      <td>${p.kit_price > 0 ? '<strong>$'+fmt(p.kit_price)+'</strong>' : '<span class="text-muted">—</span>'}</td>
     </tr>`;
   }).join('');
 
@@ -1142,7 +1154,7 @@ function customerView() {
         </div>
         <div class="card">
           <div class="table-wrap"><table>
-            <thead><tr><th>Name</th><th>SKU</th><th>Qty / On Order</th><th>Status</th><th>Price</th></tr></thead>
+            <thead><tr><th>Name</th><th>SKU</th><th>Qty / On Order</th><th>Status</th><th>Price</th><th>Singles (US)</th><th>Kit Price</th></tr></thead>
             <tbody>${rows}</tbody>
           </table></div>
         </div>
