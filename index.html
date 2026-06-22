@@ -934,9 +934,37 @@ function saveOrder(id) {
     notes: $('o-notes').value.trim(),
     items,
   };
+  const prev = id ? ords.find(x => x.id === id) : null;
+  const prevStatus = prev?.status;
+  const newStatus = o.status;
+
   if (id) { ords[ords.findIndex(x => x.id === id)] = o; }
   else { ords.push(o); }
   DB.saveOrders(ords);
+
+  // Sync inventory for customer orders when shipped status changes
+  if (o.type === 'customer') {
+    const wasShipped = prevStatus === 'shipped' || prevStatus === 'delivered';
+    const isShipped  = newStatus  === 'shipped' || newStatus  === 'delivered';
+    if (!wasShipped && isShipped) {
+      // Deduct inventory
+      const products = DB.products();
+      o.items.forEach(item => {
+        const p = products.find(x => x.sku === item.sku);
+        if (p) p.qty = Math.max(0, p.qty - item.qty);
+      });
+      DB.saveProducts(products);
+    } else if (wasShipped && !isShipped) {
+      // Restore inventory
+      const products = DB.products();
+      o.items.forEach(item => {
+        const p = products.find(x => x.sku === item.sku);
+        if (p) p.qty += item.qty;
+      });
+      DB.saveProducts(products);
+    }
+  }
+
   closeModal();
   orders();
 }
