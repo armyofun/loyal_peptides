@@ -356,11 +356,41 @@ function dashboard() {
   const shippedSupplierCount = shippedSupplier.length;
   const shippedSupplierValue = shippedSupplier.reduce((s,o) => s + o.items.reduce((si,i) => si + i.qty * i.price, 0), 0);
 
+  // Revenue: total from delivered/shipped customer orders
+  const completedCustomer = orders.filter(o => o.type === 'customer' && ['shipped','delivered'].includes(o.status));
+  const revenue = completedCustomer.reduce((s,o) => s + o.items.reduce((si,i) => si + i.qty * i.price, 0), 0);
+
+  // Outstanding: pending/confirmed customer orders not yet shipped
+  const outstanding = orders.filter(o => o.type === 'customer' && ['pending','confirmed'].includes(o.status))
+    .reduce((s,o) => s + o.items.reduce((si,i) => si + i.qty * i.price, 0), 0);
+
+  // COGS: cost of items in completed customer orders (matched by SKU)
+  const cogs = completedCustomer.reduce((s,o) => s + o.items.reduce((si,i) => {
+    const p = products.find(x => x.sku === i.sku);
+    return si + i.qty * (p?.cost || 0);
+  }, 0), 0);
+  const grossMargin = revenue - cogs;
+  const marginPct = revenue > 0 ? (grossMargin / revenue * 100).toFixed(1) : '0.0';
+
+  // Average order value
+  const avgOrderValue = completedCustomer.length > 0 ? revenue / completedCustomer.length : 0;
+
+  // Top selling products by units outgoing
+  const unitsSold = {};
+  completedCustomer.forEach(o => o.items.forEach(i => {
+    if (i.sku) unitsSold[i.sku] = (unitsSold[i.sku] || { name: i.name, qty: 0 });
+    if (i.sku) unitsSold[i.sku].qty += i.qty;
+  }));
+  const topProducts = Object.entries(unitsSold).sort((a,b) => b[1].qty - a[1].qty).slice(0,5);
+  const topRows = topProducts.map(([sku, d]) =>
+    `<tr><td><strong>${esc(d.name)}</strong></td><td class="text-muted">${esc(sku)}</td><td>${d.qty} units</td></tr>`
+  ).join('') || `<tr><td colspan="3"><div class="empty"><p>No sales data yet</p></div></td></tr>`;
+
   const txRows = recentTx.map(t => `
     <tr>
       <td>${fmtDate(t.date)}</td>
       <td>${esc(t.productName)}</td>
-      <td><span class="badge ${t.type==='incoming'?'green':'red'}">${t.type==='incoming'?'▲ Incoming':'▼ Outgoing'}</span></td>
+      <td><span class="badge ${t.type==='incoming'?'green':'red'}">${t.type==='incoming'?'▲ In':'▼ Out'}</span></td>
       <td>${t.qty}</td>
       <td class="text-muted">${esc(t.vendor||t.ref||'—')}</td>
     </tr>`).join('') || `<tr><td colspan="5"><div class="empty"><p>No transactions yet</p></div></td></tr>`;
@@ -381,17 +411,21 @@ function dashboard() {
       <div class="stat-card primary"><div class="label">Total Products</div><div class="value">${totalProducts}</div></div>
       <div class="stat-card danger"><div class="label">Out of Stock</div><div class="value">${outOfStock}</div></div>
       <div class="stat-card warning"><div class="label">Low Stock</div><div class="value">${lowStock}</div></div>
-      <div class="stat-card success"><div class="label">Inventory Value</div><div class="value">$${fmt(totalValue)}</div></div>
-      <div class="stat-card blue" style="--blue:#3b82f6"><div class="label">Pending Orders</div><div class="value" style="color:#3b82f6">${pendingOrders}</div></div>
-      <div class="stat-card" style="--blue:#8b5cf6"><div class="label">Shipped Supplier Orders</div><div class="value" style="color:#8b5cf6">${shippedSupplierCount}</div></div>
-      <div class="stat-card" style="--blue:#8b5cf6"><div class="label">Shipped Supplier Value</div><div class="value" style="color:#8b5cf6">$${fmt(shippedSupplierValue)}</div></div>
+      <div class="stat-card success"><div class="label">Inventory Value (Cost)</div><div class="value">$${fmt(totalValue)}</div></div>
+      <div class="stat-card blue"><div class="label">Pending Orders</div><div class="value" style="color:#3b82f6">${pendingOrders}</div></div>
+      <div class="stat-card" style="background:linear-gradient(135deg,#ecfdf5,#d1fae5)"><div class="label">Total Revenue</div><div class="value" style="color:#059669">$${fmt(revenue)}</div></div>
+      <div class="stat-card" style="background:linear-gradient(135deg,#fffbeb,#fef3c7)"><div class="label">Outstanding Value</div><div class="value" style="color:#d97706">$${fmt(outstanding)}</div></div>
+      <div class="stat-card" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7)"><div class="label">Gross Margin</div><div class="value" style="color:#16a34a">$${fmt(grossMargin)} <span style="font-size:14px;font-weight:500">(${marginPct}%)</span></div></div>
+      <div class="stat-card" style="background:linear-gradient(135deg,#f8faff,#eff6ff)"><div class="label">Avg Order Value</div><div class="value" style="color:#2563eb">$${fmt(avgOrderValue)}</div></div>
+      <div class="stat-card" style="background:linear-gradient(135deg,#fdf4ff,#fae8ff)"><div class="label">Shipped Supplier Orders</div><div class="value" style="color:#9333ea">${shippedSupplierCount}</div></div>
+      <div class="stat-card" style="background:linear-gradient(135deg,#fdf4ff,#fae8ff)"><div class="label">Shipped Supplier Value</div><div class="value" style="color:#9333ea">$${fmt(shippedSupplierValue)}</div></div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px">
       <div class="card">
-        <div class="section-hdr"><h2>Recent Transactions</h2></div>
+        <div class="section-hdr"><h2>Top Selling Products</h2></div>
         <div class="table-wrap"><table>
-          <thead><tr><th>Date</th><th>Product</th><th>Type</th><th>Qty</th><th>Ref</th></tr></thead>
-          <tbody>${txRows}</tbody>
+          <thead><tr><th>Product</th><th>SKU</th><th>Units Sold</th></tr></thead>
+          <tbody>${topRows}</tbody>
         </table></div>
       </div>
       <div class="card">
@@ -399,6 +433,13 @@ function dashboard() {
         <div class="table-wrap"><table>
           <thead><tr><th>Product</th><th>SKU</th><th>Status</th><th>Qty / Min</th></tr></thead>
           <tbody>${alertRows}</tbody>
+        </table></div>
+      </div>
+      <div class="card">
+        <div class="section-hdr"><h2>Recent Transactions</h2></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Date</th><th>Product</th><th>Type</th><th>Qty</th><th>Ref</th></tr></thead>
+          <tbody>${txRows}</tbody>
         </table></div>
       </div>
     </div>
