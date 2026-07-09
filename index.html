@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Loyal Peptides — Inventory</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
     --bg: #f8fafc;
@@ -213,7 +214,6 @@
       <button id="menu-btn" onclick="toggleMenu()">☰</button>
       <h1 id="page-title">Dashboard</h1>
       <div style="display:flex;align-items:center;gap:14px">
-        <span id="sync-status"></span>
         <div id="topbar-actions"></div>
       </div>
     </div>
@@ -225,17 +225,50 @@
 <div id="modal-container"></div>
 
 <script>
-// ── Data Layer ──────────────────────────────────────────────────────────────
+// ── Supabase ─────────────────────────────────────────────────────────────────
+const SUPA_URL = 'https://ssymcnbeyyjwngcvlsmi.supabase.co';
+const SUPA_KEY = 'sb_publishable_eWzoC-GXEEc_HBJbCvdQLQ_nMurzb_T';
+const _sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// ── Data Layer ───────────────────────────────────────────────────────────────
 const DB = {
-  get(k) { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } },
-  set(k, v) { localStorage.setItem(k, JSON.stringify(v)); },
-  products() { return this.get('sf_products'); },
-  transactions() { return this.get('sf_transactions'); },
-  orders() { return this.get('sf_orders'); },
-  saveProducts(v) { this.set('sf_products', v); },
-  saveTransactions(v) { this.set('sf_transactions', v); },
-  saveOrders(v) { this.set('sf_orders', v); },
+  _p: [], _t: [], _o: [],
+  products() { return this._p; },
+  transactions() { return this._t; },
+  orders() { return this._o; },
   nextId(arr) { return arr.length ? Math.max(...arr.map(x => x.id)) + 1 : 1; },
+
+  async load() {
+    const [p, t, o] = await Promise.all([
+      _sb.from('products').select('*').order('id'),
+      _sb.from('transactions').select('*').order('id'),
+      _sb.from('orders').select('*').order('id'),
+    ]);
+    if (p.error) throw p.error;
+    if (!p.data.length) {
+      // First run — seed from built-in data
+      await _sb.from('products').insert(_P);
+      await _sb.from('transactions').insert(_T);
+      await _sb.from('orders').insert(_O);
+      this._p = _P; this._t = _T; this._o = _O;
+    } else {
+      this._p = p.data; this._t = t.data || []; this._o = o.data || [];
+    }
+  },
+
+  _push(table, newArr, oldArr) {
+    const removed = oldArr.filter(x => !newArr.find(y => y.id === x.id)).map(x => x.id);
+    (async () => {
+      try {
+        if (newArr.length) await _sb.from(table).upsert(newArr, { onConflict: 'id' });
+        if (removed.length) await _sb.from(table).delete().in('id', removed);
+      } catch(e) { console.error(`Supabase ${table} error:`, e); }
+    })();
+  },
+
+  saveProducts(v)     { this._push('products',     v, this._p); this._p = v; },
+  saveTransactions(v) { this._push('transactions', v, this._t); this._t = v; },
+  saveOrders(v)       { this._push('orders',       v, this._o); this._o = v; },
 };
 
 // ── Real data ─────────────────────────────────────────────────────────────────
@@ -243,25 +276,11 @@ const _P=[{"id":1,"name":"BAC10","sku":"BAC10","category":"Peptides","unit":"via
 const _T=[{"id":1,"productId":14,"productName":"RETA10","type":"incoming","qty":5,"date":"2026-03-03","vendor":"SAB","cost_total":47.5,"shipping":0,"cost_each":9.5,"note":"For: John"},{"id":2,"productId":15,"productName":"RETA20","type":"incoming","qty":5,"date":"2026-03-03","vendor":"SAB","cost_total":85,"shipping":0,"cost_each":17,"note":"For: John"},{"id":3,"productId":6,"productName":"IPA10","type":"incoming","qty":10,"date":"2026-03-03","vendor":"SAB","cost_total":77,"shipping":0,"cost_each":7.7,"note":"For: John"},{"id":4,"productId":21,"productName":"TESA10","type":"incoming","qty":10,"date":"2026-03-03","vendor":"SAB","cost_total":155,"shipping":0,"cost_each":15.5,"note":"For: John"},{"id":5,"productId":1,"productName":"BAC10","type":"incoming","qty":10,"date":"2026-03-03","vendor":"SAB","cost_total":22,"shipping":0,"cost_each":2.2,"note":"For: John"},{"id":6,"productId":3,"productName":"BPC10","type":"incoming","qty":10,"date":"2026-03-11","vendor":"SAB","cost_total":66,"shipping":0,"cost_each":6.6,"note":"For: Ramon"},{"id":7,"productId":8,"productName":"MOTS10","type":"incoming","qty":10,"date":"2026-03-11","vendor":"SAB","cost_total":66,"shipping":0,"cost_each":6.6,"note":"For: Ramon"},{"id":8,"productId":10,"productName":"MOTS40","type":"incoming","qty":20,"date":"2026-04-29","vendor":"GlowGetters","cost_total":276,"shipping":15,"cost_each":14.55,"note":"For: John"},{"id":9,"productId":15,"productName":"RETA20","type":"incoming","qty":10,"date":"2026-03-11","vendor":"SAB","cost_total":170,"shipping":0,"cost_each":17,"note":"For: Ramon"},{"id":10,"productId":2,"productName":"BAC30","type":"incoming","qty":10,"date":"2026-03-12","vendor":"BuyHive","cost_total":78,"shipping":10,"cost_each":8.8,"note":"For: John"},{"id":11,"productId":2,"productName":"BAC30","type":"incoming","qty":10,"date":"2026-03-16","vendor":"jbcalde","cost_total":90,"shipping":13,"cost_each":10.3,"note":"For: John"},{"id":12,"productId":15,"productName":"RETA20","type":"incoming","qty":10,"date":"2026-03-26","vendor":"SAB","cost_total":177,"shipping":0,"cost_each":17.7,"note":"For: John"},{"id":13,"productId":8,"productName":"MOTS10","type":"incoming","qty":20,"date":"2026-03-26","vendor":"SAB","cost_total":132,"shipping":0,"cost_each":6.6,"note":"For: John"},{"id":14,"productId":16,"productName":"RETA30","type":"incoming","qty":20,"date":"2026-04-02","vendor":"Bohemia","cost_total":260,"shipping":15,"cost_each":13.75,"note":"For: John"},{"id":15,"productId":16,"productName":"RETA30","type":"incoming","qty":20,"date":"2026-04-03","vendor":"SAB","cost_total":396.1,"shipping":0,"cost_each":19.805,"note":"For: John"},{"id":16,"productId":7,"productName":"KLOW80","type":"incoming","qty":10,"date":"2026-04-03","vendor":"SAB","cost_total":159.8,"shipping":0,"cost_each":15.98,"note":"For: John"},{"id":17,"productId":4,"productName":"GH15","type":"incoming","qty":50,"date":"2026-04-03","vendor":"MS","cost_total":300,"shipping":5,"cost_each":6.1,"note":"For: John"},{"id":18,"productId":19,"productName":"TB10","type":"incoming","qty":10,"date":"2026-04-04","vendor":"SAB","cost_total":133,"shipping":16.6667,"cost_each":14.9667,"note":"For: Ramon"},{"id":19,"productId":3,"productName":"BPC10","type":"incoming","qty":10,"date":"2026-04-04","vendor":"SAB","cost_total":66,"shipping":16.6667,"cost_each":8.2667,"note":"For: Ramon"},{"id":20,"productId":7,"productName":"KLOW80","type":"incoming","qty":10,"date":"2026-04-04","vendor":"SAB","cost_total":188,"shipping":16.6667,"cost_each":20.4667,"note":"For: Ramon"},{"id":21,"productId":22,"productName":"TIRZ30","type":"incoming","qty":20,"date":"2026-04-04","vendor":"eBazaar","cost_total":110,"shipping":5,"cost_each":5.75,"note":"For: John"},{"id":22,"productId":14,"productName":"RETA10","type":"incoming","qty":50,"date":"2026-04-04","vendor":"eBazaar","cost_total":295,"shipping":5,"cost_each":6,"note":"For: John"},{"id":23,"productId":20,"productName":"TC250","type":"incoming","qty":10,"date":"2026-04-09","vendor":"Legendary","cost_total":200,"shipping":40,"cost_each":24,"note":"For: John"},{"id":24,"productId":4,"productName":"GH15","type":"incoming","qty":50,"date":"2026-04-14","vendor":"MS","cost_total":300,"shipping":10,"cost_each":6.2,"note":"For: John"},{"id":25,"productId":15,"productName":"RETA20","type":"incoming","qty":10,"date":"2026-04-16","vendor":"Legendary","cost_total":180,"shipping":13.33,"cost_each":19.333,"note":"For: John"},{"id":26,"productId":15,"productName":"RETA20","type":"incoming","qty":10,"date":"2026-04-16","vendor":"Legendary","cost_total":180,"shipping":13.33,"cost_each":19.333,"note":"For: Ramon"},{"id":27,"productId":14,"productName":"RETA10","type":"incoming","qty":10,"date":"2026-04-16","vendor":"Legendary","cost_total":100,"shipping":13.34,"cost_each":11.334,"note":"For: Ramon"},{"id":28,"productId":16,"productName":"RETA30","type":"incoming","qty":20,"date":"2026-04-19","vendor":"MS","cost_total":220,"shipping":5,"cost_each":11.25,"note":"For: John"},{"id":29,"productId":8,"productName":"MOTS10","type":"incoming","qty":20,"date":"2026-04-25","vendor":"SAB","cost_total":132,"shipping":16.66,"cost_each":7.433,"note":"For: Ramon"},{"id":30,"productId":17,"productName":"SS3110","type":"incoming","qty":10,"date":"2026-04-25","vendor":"SAB","cost_total":99,"shipping":16.66,"cost_each":11.566,"note":"For: Ramon"},{"id":31,"productId":12,"productName":"NAD500","type":"incoming","qty":10,"date":"2026-04-25","vendor":"SAB","cost_total":88,"shipping":16.67,"cost_each":10.467,"note":"For: Ramon"},{"id":32,"productId":4,"productName":"GH15","type":"incoming","qty":20,"date":"2026-03-08","vendor":"Bohemia","cost_total":140,"shipping":0,"cost_each":7,"note":"For: Ramon"},{"id":33,"productId":16,"productName":"RETA30","type":"incoming","qty":5,"date":"2026-03-08","vendor":"Bohemia","cost_total":75,"shipping":0,"cost_each":15,"note":"For: John"},{"id":34,"productId":16,"productName":"RETA30","type":"incoming","qty":5,"date":"2026-03-08","vendor":"Bohemia","cost_total":75,"shipping":0,"cost_each":15,"note":"For: Ramon"},{"id":35,"productId":18,"productName":"SS3150","type":"incoming","qty":10,"date":"2026-03-08","vendor":"Bohemia","cost_total":220,"shipping":0,"cost_each":22,"note":"For: John"},{"id":36,"productId":7,"productName":"KLOW80","type":"incoming","qty":10,"date":"2026-03-17","vendor":"Aria","cost_total":225,"shipping":0,"cost_each":22.5,"note":"For: John"},{"id":37,"productId":7,"productName":"KLOW80","type":"incoming","qty":20,"date":"2026-04-09","vendor":"Pepe","cost_total":258,"shipping":17.5,"cost_each":13.775,"note":"For: John"},{"id":38,"productId":7,"productName":"KLOW80","type":"incoming","qty":10,"date":"2026-04-09","vendor":"Pepe","cost_total":129,"shipping":17.5,"cost_each":14.65,"note":"For: Ramon"},{"id":39,"productId":2,"productName":"BAC30","type":"incoming","qty":25,"date":"2026-04-28","vendor":"ModApoth","cost_total":145,"shipping":15,"cost_each":6.4,"note":"For: John"},{"id":40,"productId":16,"productName":"RETA30","type":"incoming","qty":20,"date":"2026-04-03","vendor":"SAB","cost_total":396.1,"shipping":0,"cost_each":19.805,"note":"For: John"},{"id":41,"productId":7,"productName":"KLOW80","type":"incoming","qty":10,"date":"2026-04-03","vendor":"SAB","cost_total":159.8,"shipping":0,"cost_each":15.98,"note":"For: John"},{"id":42,"productId":6,"productName":"IPA10","type":"incoming","qty":10,"date":"2026-04-03","vendor":"SAB","cost_total":0,"shipping":0,"cost_each":0,"note":"For: John"},{"id":43,"productId":9,"productName":"KPV","type":"incoming","qty":10,"date":"2026-04-03","vendor":"SAB","cost_total":0,"shipping":0,"cost_each":0,"note":"For: John"},{"id":44,"productId":15,"productName":"RETA20","type":"incoming","qty":20,"date":"2026-05-21","vendor":"Legendary","cost_total":360,"shipping":40,"cost_each":20,"note":"For: Both"},{"id":45,"productId":19,"productName":"TB10","type":"incoming","qty":10,"date":"2026-05-22","vendor":"HXTNT","cost_total":60,"shipping":30,"cost_each":9,"note":"For: Both"},{"id":46,"productId":3,"productName":"BPC10","type":"incoming","qty":10,"date":"2026-05-22","vendor":"HXTNT","cost_total":120,"shipping":30,"cost_each":15,"note":"For: Both"},{"id":47,"productId":5,"productName":"GH24","type":"incoming","qty":20,"date":"2026-05-09","vendor":"Lobster","cost_total":184,"shipping":5,"cost_each":9.45,"note":"For: Ramon"},{"id":48,"productId":5,"productName":"GH24","type":"incoming","qty":80,"date":"2026-05-09","vendor":"Lobster","cost_total":736,"shipping":5,"cost_each":9.2625,"note":"For: John"},{"id":49,"productId":16,"productName":"RETA30","type":"incoming","qty":30,"date":"2026-05-26","vendor":"RC","cost_total":330,"shipping":20,"cost_each":11.6667,"note":"For: John"},{"id":50,"productId":5,"productName":"GH24","type":"incoming","qty":50,"date":"2026-05-29","vendor":"Moli","cost_total":500,"shipping":0,"cost_each":10,"note":"For: John"},{"id":51,"productId":16,"productName":"RETA30","type":"incoming","qty":50,"date":"2026-05-29","vendor":"Moli","cost_total":445,"shipping":0,"cost_each":8.9,"note":"For: John"},{"id":52,"productId":11,"productName":"MAST250","type":"incoming","qty":5,"date":"2026-06-02","vendor":"Legendary","cost_total":275,"shipping":11.66,"cost_each":57.332,"note":"For: Both"},{"id":53,"productId":13,"productName":"PRIMO100","type":"incoming","qty":5,"date":"2026-06-02","vendor":"Legendary","cost_total":325,"shipping":11.67,"cost_each":67.334,"note":"For: Both"},{"id":54,"productId":20,"productName":"TC250","type":"incoming","qty":10,"date":"2026-06-02","vendor":"Legendary","cost_total":160,"shipping":11.67,"cost_each":17.167,"note":"For: Both"},{"id":55,"productId":2,"productName":"BAC30","type":"outgoing","qty":1,"date":"2026-06-08","note":"","ref":""},{"id":56,"productId":3,"productName":"BPC10","type":"incoming","qty":10,"date":"2026-06-25","note":"","vendor":"","cost_total":66,"shipping":0,"cost_each":6.6},{"id":57,"productId":19,"productName":"TB10","type":"incoming","qty":10,"date":"2026-06-25","note":"","vendor":"SAB","cost_total":133,"shipping":0,"cost_each":13.3},{"id":58,"productId":21,"productName":"TESA10","type":"incoming","qty":10,"date":"2026-06-26","note":"","vendor":"SAB","cost_total":180,"shipping":20,"cost_each":20},{"id":59,"productId":5,"productName":"GH24","type":"incoming","qty":80,"date":"2026-07-07","note":"","vendor":"Lobster","cost_total":0,"shipping":10,"cost_each":9.57},{"id":60,"productId":24,"productName":"GHK100","type":"incoming","qty":20,"date":"2026-07-07","note":"","vendor":"BBA","cost_total":140,"shipping":30,"cost_each":5.5},{"id":61,"productId":23,"productName":"GLOW70","type":"incoming","qty":20,"date":"2026-07-07","note":"","vendor":"BBA","cost_total":370,"shipping":30,"cost_each":17},{"id":62,"productId":10,"productName":"MOTS40","type":"incoming","qty":19,"date":"2026-07-07","note":"","vendor":"","cost_total":294,"shipping":18,"cost_each":13.8},{"id":63,"productId":15,"productName":"RETA20","type":"incoming","qty":20,"date":"2026-07-07","note":"","vendor":"Legend","cost_total":400,"shipping":40,"cost_each":18},{"id":64,"productId":2,"productName":"BAC30","type":"incoming","qty":25,"date":"2026-07-09","note":"","vendor":"","cost_total":157,"shipping":10,"cost_each":5.86},{"id":65,"productId":15,"productName":"RETA20","type":"outgoing","qty":2,"date":"2026-07-09","note":"","ref":""}];
 const _O=[{"id":1,"ref":"ORD-0001","type":"customer","party":"TQ F4L","date":"2026-06-01","status":"delivered","notes":"","items":[{"name":"BPC10","sku":"BPC10","qty":2,"price":35,"from":"Ramon"},{"name":"TB10","sku":"TB10","qty":2,"price":50,"from":"Ramon"}]},{"id":2,"ref":"ORD-0002","party":"Jiesyl","type":"customer","date":"2026-06-01","status":"delivered","notes":"","items":[{"name":"RETA20","sku":"RETA20","qty":2,"price":100}]},{"id":3,"ref":"ORD-0003","type":"customer","party":"Mariangie","date":"2026-06-01","status":"delivered","notes":"","items":[{"name":"RETA20","sku":"RETA20","qty":1,"price":0,"from":"Ramon"},{"name":"KLOW80","sku":"KLOW80","qty":1,"price":100,"from":"John"}]},{"id":4,"ref":"ORD-0004","type":"customer","party":"Roger","date":"2026-06-01","status":"delivered","notes":"","items":[{"name":"KLOW80","sku":"KLOW80","qty":1,"price":50,"from":"John"},{"name":"RETA20","sku":"RETA20","qty":1,"price":50,"from":"Ramon"},{"name":"TESA10","sku":"TESA10","qty":2,"price":20,"from":"Ramon"}]},{"id":5,"ref":"ORD-0005","party":"Carlos","type":"customer","date":"2026-06-01","status":"delivered","notes":"","items":[{"name":"TESA10","sku":"TESA10","qty":3,"price":50}]},{"id":6,"ref":"ORD-0006","party":"Mari Pena","type":"customer","date":"2026-06-01","status":"delivered","notes":"","items":[{"name":"RETA20","sku":"RETA20","qty":2,"price":150}]},{"id":7,"ref":"ORD-0007","party":"Corbin Colón","type":"customer","date":"2026-06-01","status":"delivered","notes":"","items":[{"name":"GH15","sku":"GH15","qty":10,"price":12.5}]},{"id":8,"ref":"ORD-0008","party":"DQ","type":"customer","date":"2026-06-01","status":"delivered","notes":"","items":[{"name":"RETA10","sku":"RETA10","qty":2,"price":100}]},{"id":9,"ref":"ORD-0009","type":"customer","party":"Johnathan","date":"2026-06-01","status":"delivered","notes":"","items":[{"name":"MOTS10","sku":"MOTS10","qty":3,"price":35,"from":"Ramon"},{"name":"RETA10","sku":"RETA10","qty":1,"price":90,"from":"Ramon"}]},{"id":10,"ref":"ORD-0010","type":"customer","party":"Mariangie","date":"2026-06-01","status":"delivered","notes":"","items":[{"name":"TESA10","sku":"TESA10","qty":2,"price":20,"from":"Ramon"},{"name":"MOTS10","sku":"MOTS10","qty":1,"price":35,"from":"John"}]},{"id":11,"ref":"ORD-0011","party":"Victoria","type":"customer","date":"2026-06-01","status":"delivered","notes":"","items":[{"name":"RETA10","sku":"RETA10","qty":1,"price":60}]},{"id":12,"ref":"ORD-0012","party":"Dan","type":"customer","date":"2026-06-01","status":"delivered","notes":"","items":[{"name":"RETA10","sku":"RETA10","qty":1,"price":60}]},{"id":13,"ref":"ORD-0013","type":"customer","party":"Ronni","date":"2026-06-01","status":"delivered","notes":"","items":[{"name":"GH15","sku":"GH15","qty":10,"price":60,"from":"Ramon"},{"name":"RETA20","sku":"RETA20","qty":20,"price":50,"from":"John"},{"name":"TC250","sku":"TC250","qty":2,"price":50,"from":"John"},{"name":"MOTS10","sku":"MOTS10","qty":10,"price":30,"from":"Ramon"},{"name":"KLOW80","sku":"KLOW80","qty":10,"price":60,"from":"John"}]},{"id":14,"ref":"ORD-0014","type":"customer","party":"Axel","date":"2026-06-01","status":"delivered","notes":"","items":[{"name":"PRIMO100","sku":"PRIMO100","qty":2,"price":75,"from":""},{"name":"TC250","sku":"TC250","qty":2,"price":75,"from":""}]},{"id":15,"ref":"ORD-0015","party":"Cliff Roberts","type":"customer","date":"2026-06-01","status":"delivered","notes":"","items":[{"name":"TIRZ30","sku":"TIRZ30","qty":2,"price":65}]},{"id":16,"ref":"ORD-0016","party":"Justin Albrecht","type":"customer","date":"2026-06-01","status":"delivered","notes":"","items":[{"name":"BPC10","sku":"BPC10","qty":3,"price":35},{"name":"TB10","sku":"TB10","qty":3,"price":45},{"name":"IPA10","sku":"IPA10","qty":1,"price":40},{"name":"BAC30","sku":"BAC30","qty":1,"price":25}]},{"id":100,"ref":"ORD-0100","party":"Pending (in transit)","type":"supplier","date":"2026-06-19","status":"shipped","notes":"Items ordered but not yet received from inventory sheet","items":[{"name":"BAC30","sku":"BAC30","qty":25,"price":8.5},{"name":"RETA30","sku":"RETA30","qty":10,"price":14.4},{"name":"SS3150","sku":"SS3150","qty":10,"price":22}]},{"id":101,"ref":"ORD-0101","party":"SAB","type":"supplier","date":"2026-06-09","status":"delivered","notes":"","items":[{"name":"TB10","sku":"TB10","qty":20,"price":13.3},{"name":"BPC10","sku":"BPC10","qty":10,"price":6.6},{"name":"RETA10","sku":"RETA10","qty":10,"price":9.9},{"name":"SHIPPING","sku":"","qty":1,"price":50}]},{"id":102,"ref":"ORD-0102","party":"BBA","type":"supplier","date":"2026-06-04","status":"delivered","notes":"","items":[{"name":"GLOW70","sku":"GLOW70","qty":20,"price":17},{"name":"GHK100","sku":"GHK100","qty":20,"price":5.5},{"name":"SHIPPING","sku":"","qty":1,"price":60}]},{"id":103,"ref":"ORD-0103","party":"Midnight Society","type":"supplier","date":"2026-06-19","status":"confirmed","notes":"","items":[{"name":"GH15","sku":"GH15","qty":60,"price":11},{"name":"Shipping","sku":"","qty":1,"price":10}]},{"id":104,"ref":"ORD-0104","party":"Pepe","type":"supplier","date":"2026-06-19","status":"shipped","notes":"","items":[{"name":"RETA30","sku":"RETA30","qty":60,"price":9.5}]},{"id":105,"ref":"ORD-0017","party":"Justin Campbell","type":"customer","date":"2026-06-15","status":"delivered","notes":"","items":[{"name":"TIRZ30","sku":"TIRZ30","qty":2,"price":0}]},{"id":107,"ref":"ORD-0105","party":"SAB","type":"supplier","date":"2026-06-20","status":"delivered","notes":"","items":[{"name":"TESA10","sku":"TESA10","qty":10,"price":20}]},{"id":108,"ref":"ORD-0018","party":"Roni","type":"customer","date":"2026-06-21","status":"delivered","notes":"","items":[{"name":"RETA20","sku":"RETA20","qty":25,"price":40},{"name":"KLOW80","sku":"KLOW80","qty":5,"price":70}]},{"id":109,"ref":"ORD-0019","party":"Corbin Colon","type":"customer","date":"2026-06-22","status":"delivered","notes":"","items":[{"name":"RETA10","sku":"RETA10","qty":1,"price":50},{"name":"KLOW80","sku":"KLOW80","qty":1,"price":100}]},{"id":110,"ref":"ORD-0020","party":"Jeff Newberry","type":"customer","date":"2026-06-18","status":"delivered","notes":"","items":[{"name":"TC250","sku":"TC250","qty":1,"price":30},{"name":"RETA10","sku":"RETA10","qty":2,"price":35}]},{"id":111,"ref":"ORD-0106","party":"eBAC","type":"supplier","date":"2026-07-09","status":"delivered","notes":"","items":[{"name":"BAC30","sku":"BAC30","qty":25,"price":5.86}]}];
 
-const DATA_VERSION = 'v5-real';
-function migrateData() {
-  if (localStorage.getItem('sf_version') === DATA_VERSION) return;
-  Object.keys(localStorage).filter(k => k.startsWith('sf_')).forEach(k => localStorage.removeItem(k));
-  DB.saveProducts(_P);
-  DB.saveTransactions(_T);
-  DB.saveOrders(_O);
-  localStorage.setItem('sf_version', DATA_VERSION);
-}
 
 // ── Router ───────────────────────────────────────────────────────────────────
 let currentView = 'dashboard';
 const views = { dashboard, inventory, transactions, orders, settings };
 
-// Wrap DB saves to trigger GitHub sync
-['saveProducts','saveTransactions','saveOrders'].forEach(fn => {
-  const orig = DB[fn].bind(DB);
-  DB[fn] = v => { orig(v); scheduleSyncToGitHub(); };
-});
 
 function navigate(view) {
   currentView = view;
@@ -1014,7 +1033,6 @@ function submitPin() {
     sessionStorage.setItem('sf_admin', '1');
     document.getElementById('pin-screen').remove();
     $('app').style.display = '';
-    migrateData();
     navigate('dashboard');
   } else {
     $('pin-error').textContent = 'Incorrect PIN — try again.';
@@ -1023,74 +1041,8 @@ function submitPin() {
   }
 }
 
-// ── GitHub Sync ────────────────────────────────────────────────────────────────
-const GH_REPO = 'armyofun/loyal_peptides';
-const GH_FILE = 'index.html';
-let _syncTimer = null;
-
-function scheduleSyncToGitHub() {
-  if (!sessionStorage.getItem('sf_admin')) return;
-  clearTimeout(_syncTimer);
-  setSyncStatus('pending');
-  _syncTimer = setTimeout(syncToGitHub, 2500);
-}
-
-function setSyncStatus(s) {
-  const el = $('sync-status');
-  if (!el) return;
-  const map = { pending:['● Pending','#f59e0b'], syncing:['↻ Syncing…','#3b82f6'], synced:['✓ Saved','#10b981'], error:['✗ Sync failed','#ef4444'], notoken:['⚠ No token — see Settings','#f59e0b'] };
-  const [txt, col] = map[s] || ['',''];
-  el.textContent = txt; el.style.color = col;
-}
-
-function toBase64(str) {
-  const bytes = new TextEncoder().encode(str);
-  let bin = ''; bytes.forEach(b => bin += String.fromCharCode(b));
-  return btoa(bin);
-}
-function fromBase64(b64) {
-  const bin = atob(b64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new TextDecoder().decode(bytes);
-}
-
-async function syncToGitHub() {
-  const token = localStorage.getItem('lp_gh_token');
-  if (!token) { setSyncStatus('notoken'); return; }
-  setSyncStatus('syncing');
-  try {
-    const res = await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`, {
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github.v3+json' }
-    });
-    if (!res.ok) throw new Error(res.status);
-    const data = await res.json();
-    const current = fromBase64(data.content.replace(/\n/g, ''));
-    const newContent = current.split('\n').map(line => {
-      const t = line.trimStart();
-      if (t.startsWith('const _P=')) return `const _P=${JSON.stringify(DB.products(), null, 0)};`;
-      if (t.startsWith('const _T=')) return `const _T=${JSON.stringify(DB.transactions(), null, 0)};`;
-      if (t.startsWith('const _O=')) return `const _O=${JSON.stringify(DB.orders(), null, 0)};`;
-      if (t.startsWith('let ADMIN_PIN =')) return `let ADMIN_PIN = '${ADMIN_PIN}'; // sync-managed`;
-      return line;
-    }).join('\n');
-    const put = await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`, {
-      method: 'PUT',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/vnd.github.v3+json' },
-      body: JSON.stringify({ message: 'Update inventory data', content: toBase64(newContent), sha: data.sha })
-    });
-    if (!put.ok) { const e = await put.json(); throw new Error(e.message || put.status); }
-    setSyncStatus('synced');
-    setTimeout(() => setSyncStatus(''), 4000);
-  } catch(e) {
-    console.error('Sync failed:', e);
-    setSyncStatus('error');
-  }
-}
-
 // ── Settings ──────────────────────────────────────────────────────────────────
 function settings() {
-  const token = localStorage.getItem('lp_gh_token') || '';
   setContent(`
     <div style="max-width:480px;display:flex;flex-direction:column;gap:20px">
       <div class="card">
@@ -1101,20 +1053,6 @@ function settings() {
         </div>
         <div class="modal-footer"><button class="btn btn-primary" onclick="changePin()">Update PIN</button></div>
       </div>
-      <div class="card">
-        <div class="section-hdr"><h2>GitHub Sync</h2></div>
-        <p class="text-muted" style="margin-bottom:16px">A Personal Access Token with <strong>repo</strong> write scope lets the app commit data changes back to GitHub automatically.</p>
-        <div class="form-group"><label>Personal Access Token</label><input type="password" id="s-token" value="${esc(token)}" placeholder="ghp_…"></div>
-        <div class="modal-footer">
-          <button class="btn btn-outline" onclick="testGhToken()">Test</button>
-          <button class="btn btn-primary" onclick="saveGhToken()">Save Token</button>
-        </div>
-      </div>
-      <div class="card">
-        <div class="section-hdr"><h2>Force Sync Now</h2></div>
-        <p class="text-muted" style="margin-bottom:16px">Manually push current data to GitHub.</p>
-        <button class="btn btn-primary" onclick="syncToGitHub()">Sync Now</button>
-      </div>
     </div>`);
 }
 
@@ -1124,23 +1062,8 @@ function changePin() {
   if (oldVal !== ADMIN_PIN) { alert('Current PIN is incorrect.'); return; }
   if (!newVal) { alert('New PIN cannot be empty.'); return; }
   ADMIN_PIN = newVal;
-  scheduleSyncToGitHub();
   $('s-old').value = ''; $('s-new').value = '';
-  alert('PIN updated — syncing to GitHub.');
-}
-
-function saveGhToken() {
-  const t = $('s-token').value.trim();
-  if (t) localStorage.setItem('lp_gh_token', t);
-  else localStorage.removeItem('lp_gh_token');
-  alert('Token saved locally.');
-}
-
-async function testGhToken() {
-  const t = $('s-token').value.trim();
-  if (!t) { alert('Enter a token first.'); return; }
-  const res = await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`, { headers: { Authorization: `Bearer ${t}` } });
-  alert(res.ok ? '✓ Token works!' : `✗ Failed (${res.status}) — check the token has repo write access.`);
+  alert('PIN updated.');
 }
 
 // ── Customer view ─────────────────────────────────────────────────────────────
@@ -1204,7 +1127,6 @@ function renderCustomerTable() {
 
 function customerView() {
   document.getElementById('app').style.display = 'none';
-  migrateData();
   document.body.insertAdjacentHTML('beforeend', `
     <div style="min-height:100vh;background:var(--bg);display:flex;flex-direction:column">
       <header style="background:var(--text);padding:16px 24px;display:flex;align-items:center;gap:14px">
@@ -1242,17 +1164,33 @@ function customerView() {
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
-const _params = new URLSearchParams(window.location.search);
-if (_params.has('admin')) {
-  if (sessionStorage.getItem('sf_admin') === '1') {
-    migrateData();
-    navigate('dashboard');
-  } else {
-    showPinModal();
+(async () => {
+  const loading = document.createElement('div');
+  loading.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:9999;font-size:15px;color:var(--text-muted)';
+  loading.textContent = 'Loading…';
+  document.body.appendChild(loading);
+
+  try {
+    await DB.load();
+  } catch(e) {
+    loading.textContent = 'Failed to connect to database. Check your connection and reload.';
+    console.error(e);
+    return;
   }
-} else {
-  customerView();
-}
+
+  loading.remove();
+
+  const _params = new URLSearchParams(window.location.search);
+  if (_params.has('admin')) {
+    if (sessionStorage.getItem('sf_admin') === '1') {
+      navigate('dashboard');
+    } else {
+      showPinModal();
+    }
+  } else {
+    customerView();
+  }
+})();
 </script>
 </body>
 </html>
