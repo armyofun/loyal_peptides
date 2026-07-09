@@ -748,14 +748,40 @@ function saveTx(type, txId=null) {
 }
 
 // ── Orders ───────────────────────────────────────────────────────────────────
+let _ordSort = { col: 'date', dir: -1 };
+
+function ordSortBy(col) {
+  if (_ordSort.col === col) _ordSort.dir *= -1;
+  else _ordSort = { col, dir: 1 };
+  orders(_ordSort._tab || 'all', _ordSort._filter || '');
+}
+
 function orders(tab='all', filter='') {
+  _ordSort._tab = tab; _ordSort._filter = filter;
   let ords = DB.orders();
   if (tab !== 'all') ords = ords.filter(o => tab === 'customer' ? o.type === 'customer' : tab === 'supplier' ? o.type === 'supplier' : o.status === tab);
   if (filter) {
     const q = filter.toLowerCase();
     ords = ords.filter(o => o.ref.toLowerCase().includes(q) || o.party.toLowerCase().includes(q));
   }
-  ords = [...ords].sort((a,b) => b.date.localeCompare(a.date) || b.id - a.id);
+
+  const { col, dir } = _ordSort;
+  ords = [...ords].sort((a, b) => {
+    let av, bv;
+    if (col === 'ref')    { av = a.ref.toLowerCase(); bv = b.ref.toLowerCase(); }
+    else if (col === 'type')   { av = a.type; bv = b.type; }
+    else if (col === 'party')  { av = a.party.toLowerCase(); bv = b.party.toLowerCase(); }
+    else if (col === 'date')   { av = a.date; bv = b.date; }
+    else if (col === 'total')  { av = a.items.reduce((s,i) => s + i.qty*i.price, 0); bv = b.items.reduce((s,i) => s + i.qty*i.price, 0); }
+    else if (col === 'status') { av = a.status; bv = b.status; }
+    else { av = a.date; bv = b.date; }
+    if (av < bv) return -dir;
+    if (av > bv) return dir;
+    return 0;
+  });
+
+  const arrow = c => _ordSort.col === c ? (_ordSort.dir === 1 ? ' ▲' : ' ▼') : ' ⇅';
+  const th = (label, c) => `<th style="cursor:pointer;user-select:none" onclick="ordSortBy('${c}')">${label}<span style="opacity:${_ordSort.col===c?1:0.3};font-size:10px">${arrow(c)}</span></th>`;
 
   const rows = ords.map(o => {
     const [label, color] = orderStatusBadge(o.status);
@@ -791,7 +817,7 @@ function orders(tab='all', filter='') {
     </div>
     <div class="card">
       <div class="table-wrap"><table>
-        <thead><tr><th>Reference</th><th>Type</th><th>Party</th><th>Date</th><th>Items</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead><tr>${th('Reference','ref')}${th('Type','type')}${th('Party','party')}${th('Date','date')}<th>Items</th>${th('Total','total')}${th('Status','status')}<th>Actions</th></tr></thead>
         <tbody>${rows}</tbody>
       </table></div>
     </div>
